@@ -1,0 +1,16 @@
+{
+    "python.linting.enabled": true,
+    // "python.linting.pylintEnabled": true,
+    "python.linting.flake8Enabled": false,
+    // "python.linting.banditEnabled": true,
+    "python.linting.lintOnSave": true,
+    "files.autoSave": "afterDelay",
+    "python.linting.pylintUseMinimalCheckers": false,
+    "cSpell.words": [
+        "correspoing",
+        "Kotak",
+        "noreconnect",
+        "OHLC",
+        "pyvollib"
+    ]
+}
