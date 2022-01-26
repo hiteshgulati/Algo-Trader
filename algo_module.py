@@ -268,6 +268,20 @@ class Data_guy:
         if self.expiry_datetime.date() == self.current_datetime.date(): self.is_expiry_day = True
         
         self.candle_length = candle_length
+
+        self.candle_t_2 = {'start_datetime':None,
+                            'end_datetime':None,
+                            'open':None,
+                            'high':None,
+                            'low':None,
+                            'close':None}
+
+        self.candle_t_1 = {'start_datetime':None,
+                            'end_datetime':None,
+                            'open':None,
+                            'high':None,
+                            'low':None,
+                            'close':None}
         
         logger1.log(info="Data Guy Initiated")
 
@@ -305,10 +319,8 @@ class Data_guy:
         self.current_ltp = self.broker.get_ltp(self.underlying_name)
 
         #update candles
-        candle_t_2_open = self.fixed_candle_value(t_minus=2, value_type='open')
-        candle_t_2_close = self.fixed_candle_value(t_minus=2, value_type='close')
-        candle_t_1_open = self.fixed_candle_value(t_minus=1,value_type='open')
-        candle_t_1_close = self.fixed_candle_value(t_minus=1, value_type='close')
+        self.candle_t_2 = self.candle(t_minus=2,candle_type='fixed')
+        self.candle_t_1 = self.candle(t_minus=1,candle_type='fixed')
 
         #Update data dataframe
         self.data_df = self.data_df.append({'underlying_name': self.underlying_name, \
@@ -327,10 +339,14 @@ class Data_guy:
                                             'position_entry_ltp': self.events_and_actions.position_entry_ltp, \
                                             'is_hedged': self.events_and_actions.is_hedged, \
                                             'is_closed': self.events_and_actions.is_closed,\
-                                            'candle_t_2_open':candle_t_2_open,\
-                                            'candle_t_2_close':candle_t_2_close,\
-                                            'candle_t_1_open':candle_t_1_open,
-                                            'candle_t_1_close':candle_t_1_close}, \
+                                            'candle_t_2_start':self.candle_t_2['start_datetime'],\
+                                            'candle_t_2_end':self.candle_t_2['end_datetime'],\
+                                            'candle_t_2_open':self.candle_t_2['open'],\
+                                            'candle_t_2_close':self.candle_t_2['close'],\
+                                            'candle_t_1_start':self.candle_t_1['start_datetime'],\
+                                            'candle_t_1_end':self.candle_t_1['end_datetime'],\
+                                            'candle_t_1_open':self.candle_t_1['open'],
+                                            'candle_t_1_close':self.candle_t_1['close']}, \
                                             ignore_index=True)
         #save data_df
         self.data_df.to_csv(self.data_df_store_path, index=False)
@@ -351,119 +367,87 @@ class Data_guy:
         atm_strike = 50 * round(self.current_ltp / 50)
         return atm_strike
 
-    @keep_log()
-    def fixed_candle_value(self,t_minus=1, value_type='close') -> float:
-        """Returns Fixed Candle Values. 
-            Fixed candle length is used,
-            For Eg is the candle length is 5 minutes and time is 9:28AM
-                t_minus 1 will refer to candle 9:20 - 9:25
-                t_minus 2 will refer to candle 9:15 - 9:20
+    @keep_log(default_return = {'start_datetime':None,
+                            'end_datetime':None,
+                            'open':None,
+                            'high':None,
+                            'low':None,
+                            'close':None})
+    def candle(self,t_minus=1, candle_type = 'dynamic') -> float:
+        """Returns OHLC Candle.
+            Candle type can be of two types:
+            1) dynamic: Candle length is from current time,
+                        For Eg is the candle length is 5 minutes and time is 9:28AM
+                        t_minus 1 will refer to candle 9:23 - 9:28
+                        t_minus 2 will refer to candle 9:18 - 9:23
+
+            2) fixed:   Fixed candle length is used,
+                        For Eg is the candle length is 5 minutes and time is 9:28AM
+                        t_minus 1 will refer to candle 9:20 - 9:25
+                        t_minus 2 will refer to candle 9:15 - 9:20
 
         Args:
             t_minus (int, optional): t_minus historical candle. Defaults to 1.
-            value_type (str, optional): open/high/low/close. Defaults to 'close'.
+            candle_type (str, optional): dynamic/fixed. Defaults to 'dynamic'.
 
         Returns:
-            float: candle_value
+            dict: candle_dict - 
+                {'start_datetime': datetime, 
+                'end_datetime': datetime,
+                'open': float,
+                'high': float,
+                'low': float,
+                'close': float}
         """        
 
-        logger1.log(duration=self.candle_length,
-            t_minus=t_minus,
-            value_type=value_type)
-
         if len(self.data_df) == 0:
-            return None
+            return {'start_datetime':None,
+                            'end_datetime':None,
+                            'open':None,
+                            'high':None,
+                            'low':None,
+                            'close':None}
+
         end_datetime = self.current_datetime + \
             timedelta(minutes=(\
-                self.candle_length*t_minus*-1)\
+                self.candle_length*(t_minus-1)*-1)\
                 )
 
-        #calculate fixed length end time and start time
-        end_datetime_fixed = end_datetime - \
+        #calculate fixed length end time
+        if candle_type == 'fixed':
+            end_datetime = end_datetime - \
             (end_datetime - datetime.min) \
                 % timedelta(minutes=\
                     self.candle_length)
-        start_datetime_fixed = end_datetime_fixed - \
+
+        start_datetime = end_datetime - \
             timedelta(minutes=self.candle_length)
 
-        logger1.log(start_time=start_datetime_fixed,
-            end_time=end_datetime_fixed)
-
         #slice data_df for required candle period
-        candle_df = self.data_df[(self.data_df['current_datetime'] >= start_datetime_fixed) \
-                                    & (self.data_df['current_datetime'] <= end_datetime_fixed)] \
+        candle_df = self.data_df[(self.data_df['current_datetime'] >= start_datetime) \
+                                    & (self.data_df['current_datetime'] <= end_datetime)] \
                                 ['current_ltp']
-        if len(candle_df) >= 2:
-            if value_type == 'close':
-                candle_value = candle_df.iloc[-1]
-            elif value_type == 'open':
-                candle_value = candle_df.iloc[0]
-            elif value_type == 'high':
-                candle_value = candle_df.max()
-            elif value_type == 'low':
-                candle_value = candle_df.min()
-        else:
-            candle_value = None
-
-        logger1.log(start=start_datetime_fixed,
-            end=end_datetime_fixed,
-            value_type=value_type,
-            candle_value=candle_value)
-
-        return candle_value
-
-    @keep_log()
-    def candle_value(self, t_minus=1, value_type='close') -> float:
-        """Returns Fixed Candle Values. 
-            Candle length is from current time,
-            For Eg is the candle length is 5 minutes and time is 9:28AM
-                t_minus 1 will refer to candle 9:23 - 9:28
-                t_minus 2 will refer to candle 9:18 - 9:23
-
-        Args:
-            t_minus (int, optional): t_minus historical candle. Defaults to 1.
-            value_type (str, optional): open/high/low/close. Defaults to 'close'.
-
-        Returns:
-            float: candle_value
-        """ 
         
-        logger1.log(duration=self.candle_length,
-            t_minus=t_minus,
-            value_type=value_type)
-
-        if len(self.data_df) == 0:
-            return None
-        end_datetime = self.current_datetime + \
-            timedelta(minutes=(\
-                self.candle_length*t_minus*-1)\
-                )
-        start_time = end_time - \
-            timedelta(minutes=self.candle_length)
-
-        #slice data_df for required candle period
-        candle_df = self.data_df[(self.data_df['current_datetime'] >= start_time) \
-                                    & (self.data_df['current_datetime'] <= end_time)] \
-            ['current_ltp']
+        candle_close = None
+        candle_open = None
+        candle_high = None
+        candle_low = None
 
         if len(candle_df) >= 2:
-            if value_type == 'close':
-                candle_value = candle_df.iloc[-1]
-            elif value_type == 'open':
-                candle_value = candle_df.iloc[0]
-            elif value_type == 'high':
-                candle_value = candle_df.max()
-            elif value_type == 'low':
-                candle_value = candle_df.min()
-        else:
-            candle_value = None
+            candle_close = candle_df.iloc[-1]
+            candle_open = candle_df.iloc[0]
+            candle_high = candle_df.max()
+            candle_low = candle_df.min()
 
-        logger1.log(start=start_time,
-            end=end_time,
-            value_type=value_type,
-            candle_value=candle_value)
+        candle_dict = {'start_datetime':start_datetime,
+            'end_datetime':end_datetime,
+            'open':candle_open,
+            'high':candle_high,
+            'low':candle_low,
+            'close':candle_close}
 
-        return candle_value
+        return candle_dict
+
 
     @keep_log()
     def calculate_greeks(self, df, greek_type='delta', risk_free_rate=.07, inplace=True, filter_iv=1) -> pd.DataFrame:
@@ -818,15 +802,11 @@ class Events_and_actions:
     def event_enter_position_call_first(self) -> boolean:
         output = False
         if (not self.is_closed) & self.is_hedged & (self.current_position == None):
-            candle_t_2_open = self.data_guy.fixed_candle_value(t_minus=2, value_type='open')
-            candle_t_2_close = self.data_guy.fixed_candle_value(t_minus=2, value_type ='close')
-            if candle_t_2_open is not None and candle_t_2_close is not None:
-                if abs(candle_t_2_open - candle_t_2_close) < 15:
-                    candle_t_1_open = self.data_guy.fixed_candle_value(t_minus=1, value_type='open')
-                    candle_t_1_close = self.data_guy.fixed_candle_value(t_minus=1, value_type='close')
-                    if candle_t_1_open is not None and candle_t_1_close is not None:
-                        if abs(candle_t_1_open - candle_t_1_close) < 15:
-                            if abs(candle_t_1_close-self.data_guy.current_ltp) < 5:
+            if self.data_guy.candle_t_2['open'] is not None and self.data_guy.candle_t_2['close'] is not None:
+                if abs(self.data_guy.candle_t_2['open'] - self.data_guy.candle_t_2['close']) < 15:
+                    if self.data_guy.candle_t_1['open'] is not None and self.data_guy.candle_t_1['close'] is not None:
+                        if abs(self.data_guy.candle_t_1['open'] - self.data_guy.candle_t_1['close']) < 15:
+                            if abs(self.data_guy.candle_t_1['close']-self.data_guy.current_ltp) < 5:
                                 if self.data_guy.current_ltp >= self.data_guy.get_atm_strike():
                                     output = True
 
@@ -838,16 +818,13 @@ class Events_and_actions:
         output = False
 
         if (not self.is_closed) & self.is_hedged & (self.current_position == None):
-            candle_t_2_open = self.data_guy.fixed_candle_value(t_minus=2, value_type='open')
-            candle_t_2_close = self.data_guy.fixed_candle_value(t_minus=2, value_type='close')
-            if candle_t_2_open is not None and candle_t_2_close is not None:
-                if abs(candle_t_2_open - candle_t_2_close) < 15:
-                    candle_t_1_open = self.data_guy.fixed_candle_value(t_minus=1,value_type='open')
-                    candle_t_1_close = self.data_guy.fixed_candle_value(t_minus=1, value_type='close')
-                    if abs(candle_t_1_open - candle_t_1_close) < 15:
-                        if abs(candle_t_1_close - self.data_guy.current_ltp) < 5:
-                            if self.data_guy.current_ltp < self.data_guy.get_atm_strike():
-                                output = True
+            if self.data_guy.candle_t_2['open'] is not None and self.data_guy.candle_t_2['close'] is not None:
+                if abs(self.data_guy.candle_t_2['open'] - self.data_guy.candle_t_2['close']) < 15:
+                    if self.data_guy.candle_t_1['open'] is not None and self.data_guy.candle_t_1['close'] is not None:
+                        if abs(self.data_guy.candle_t_1['open'] - self.data_guy.candle_t_1['close']) < 15:
+                            if abs(self.data_guy.candle_t_1['close']-self.data_guy.current_ltp) < 5:
+                                if self.data_guy.current_ltp < self.data_guy.get_atm_strike():
+                                    output = True
         return output
 
     @keep_log()
