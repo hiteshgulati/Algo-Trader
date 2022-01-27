@@ -50,6 +50,7 @@ if __name__ == '__main__':
         with open (file_path, "w") as outfile:
             json.dump(broker_secret,outfile)
 
+    logs_folder_path = os.path.join(parent,'logs')
 
     algo_manager = Algo_manager(broker_for_trade='paper',
                     broker_for_data='zerodha',
@@ -63,7 +64,7 @@ if __name__ == '__main__':
                     kotak_user_password=broker_secret['kotak_user_password'],
                     kite_api_key=broker_secret['kite_api_key'],
                     kite_access_token=broker_secret['kite_access_token'],
-                    log_folder="logs",
+                    log_folder=logs_folder_path,
                     begin_time=start_time,
                     close_time=close_time,
                     quantity_per_lot = 50,

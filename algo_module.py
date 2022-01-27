@@ -63,7 +63,7 @@ class Logger ():
 
             timestamp_string = datetime.now().strftime("%H_%M_%S")
             file_handler = logging.FileHandler(
-                f'./{log_folder}/T-{broker_for_trade} D-{broker_for_data} {trading_date} @ {timestamp_string} team.log')
+                f'{log_folder}/T-{broker_for_trade} D-{broker_for_data} {trading_date} @ {timestamp_string} team.log')
             file_handler.setFormatter(formatter)
 
             self.logger.addHandler(file_handler)
