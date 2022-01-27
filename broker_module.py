@@ -19,7 +19,7 @@ def keep_log (**kwargs_decorator):
             along with result
         3) If function had error, 
             along with error message
-        4) Time the function and report in miliseconds
+        4) Time the function and report in milliseconds
 
     Args:
         level: level used to log for the function
@@ -251,7 +251,8 @@ class Broker:
                             kotak_consumer_key=None, kotak_access_token=None,
                             kotak_consumer_secret=None,kotak_user_id=None,
                             kotak_access_code=None, kotak_user_password=None) -> bool:
-        """Initialize market broker name and instrument df
+        """ (T/D)
+        Initialize market broker name and instrument df
 
         Args:
             broker_name (str): name of broker to be initialized eg Zerodha
@@ -487,12 +488,15 @@ class Broker:
     @keep_log()
     def place_market_order(self, instrument_id, 
         buy_sell, quantity, exchange='NFO') -> str:
-        """Place Intraday market order on trade Broker
+        """(T/D)
+        Place Intraday market order on trade Broker
 
-            Note for Paper trade no order is punched 
-            instead a df is maintained with 
-            average price as per appropriate 
-            buy/sell quotations 
+            Note for Paper trade
+                - data broker is used
+                - no order is punched 
+                instead a df is maintained with 
+                average price as per appropriate 
+                buy/sell quotations 
 
         Args:
             instrument_id (str): instrument id as per trade broker
@@ -737,7 +741,8 @@ class Broker:
 
     @keep_log()
     def get_positions (self) -> pd.DataFrame:
-        """Get current positions
+        """(T)
+        Get current positions
 
         Returns:
             pd.DataFrame: df containing current positions
@@ -880,7 +885,9 @@ class Broker:
 
     @keep_log()
     def get_next_expiry_datetime(self, underlying='NIFTY') -> datetime:
-        """(D)
+        """(D) - data broker is used, 
+            execution is managed internally 
+            by broker class using instruments_Df
         Get datetime of next expiry for 
             specified underlying using instruments df
             Not applicable for Paper Broker
@@ -917,7 +924,10 @@ class Broker:
 
     @keep_log()
     def get_available_strikes (self, underlying, call_put, expiry_datetime) -> list:
-        """Get strikes of currently traded Options
+        """(D) - data broker is used, 
+            execution is managed internally 
+            by broker class using instruments_Df
+        Get strikes of currently traded Options
 
         Args:
             underlying (str): name of underlying
