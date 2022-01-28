@@ -1094,17 +1094,22 @@ class Exchange:
     def ltp(self,instruments,current_datetime, initiation_time) -> float:
 
         slippage = perf_counter() - initiation_time
-        current_datetime_slippage_adj = current_datetime + timedelta(seconds=slippage)
+        current_datetime_slippage_adj = \
+            current_datetime + timedelta(seconds=slippage)
         current_datetime_slippage_adj
 
         if type(instruments) == list:
             ltp_df = pd.DataFrame(instruments)
             ltp_df = ltp_df.merge(df,left_on=0, right_on='ticker')
-            ltp_df = ltp_df[ltp_df['timestamp']<=current_datetime_slippage_adj].drop_duplicates(subset='ticker',keep='last')
+            ltp_df = ltp_df[ltp_df['timestamp']\
+                <=current_datetime_slippage_adj]\
+                    .drop_duplicates(subset='ticker',keep='last')
             ltp_df = ltp_df[['ticker','ltp']]
             return ltp_df
         else:
-            k = df[(df['ticker']==instruments)&(df['timestamp']<=current_datetime_slippage_adj)][['ltp']].iloc[-1][0]
+            k = df[(df['ticker']==instruments)\
+                &(df['timestamp']<=current_datetime_slippage_adj)]\
+                [['ltp']].iloc[-1][0]
             return k
 
 
@@ -1112,10 +1117,13 @@ class Exchange:
         #Quote
 
         slippage = perf_counter() - initiation_time
-        current_datetime_slippage_adj = current_datetime + timedelta(seconds=slippage)
+        current_datetime_slippage_adj = \
+            current_datetime + timedelta(seconds=slippage)
         current_datetime_slippage_adj
 
-        quote = df[(df['ticker']==a)&(df['timestamp']<=current_datetime_slippage_adj)][['buy_price','sell_price']].iloc[-1]
+        quote = df[(df['ticker']==a)\
+            &(df['timestamp']<=current_datetime_slippage_adj)]\
+            [['buy_price','sell_price']].iloc[-1]
         return quote
 
 
