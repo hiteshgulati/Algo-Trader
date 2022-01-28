@@ -7,6 +7,7 @@ from kiteconnect import KiteConnect
 from ks_api_client import ks_api
 from functools import wraps
 from time import perf_counter_ns
+import os
 
 logger1 = None
 
@@ -1005,7 +1006,79 @@ class Broker:
             
 
 class Exchange:
+    def __init__(self) -> None:
+        pass
 
+    def set_parameters (self,current_datetime, 
+            historical_data_folder_name, underlying_name):
+        
+        self.underlying_name = underlying_name.upper()
+        self.instruments_book = pd.DataFrame()
+        self.tick_book = pd.DataFrame()
+        self.prepare_data_book(current_datetime=current_datetime,
+            historical_data_folder_name=historical_data_folder_name)
+        
+
+    
+    @keep_log(default_return=False)
+    def prepare_data_book(self,current_datetime,
+            historical_data_folder_name,
+            fno_folder_name='FNO',
+            equity_folder_name="Equity") -> Boolean:
+
+        current_datestring = current_datetime.strftime("%Y-%m-%d")
+
+        parent = os.path.dirname(os.getcwd())
+        historical_data_folder_path = os.path.join(\
+                parent,historical_data_folder_name)
+
+        fno_data_folder_path = os.path.join(\
+                historical_data_folder_path,fno_folder_name)
+        fno_file_paths = [\
+            os.path.join(fno_data_folder_path,f) \
+            for f in os.listdir(fno_data_folder_path) \
+                if os.path.isfile(os.path.join(fno_data_folder_path,f)) \
+                    & (f.split(".")[0].split("_")[0]==current_datestring)\
+                        ]
+
+        equity_data_folder_path = os.path.join(\
+            historical_data_folder_path,equity_folder_name)
+        equity_file_paths = [\
+            os.path.join(equity_data_folder_path,f) \
+            for f in os.listdir(equity_data_folder_path) \
+                if os.path.isfile(os.path.join(equity_data_folder_path,f)) \
+                    & (f.split(".")[0].split("_")[0]==current_datestring)\
+                        ]
+
+        data_file_paths = fno_file_paths
+        data_file_paths.extend(equity_file_paths)
+        self.tick_book = pd.concat(map(pd.read_csv,data_file_paths))
+
+        self.tick_book['expiry_datetime'] = pd.to_datetime(\
+                    self.tick_book['expiry_date']) + \
+                        timedelta (hours=15, minutes =30)
+        self.tick_book['timestamp'] = pd.to_datetime(\
+                    self.tick_book['timestamp'])
+        self.tick_book.rename(columns={'Ticker':'ticker',
+                        'LTP':'ltp',
+                        'BuyPrice':'buy_price',
+                        'SellPrice':'sell_price'},
+                        inplace=True)
+        self.tick_book = self.tick_book[['ticker','ltp','buy_price','sell_price','underlying','strike','call_put','expiry_datetime','timestamp']]
+        self.tick_book = self.tick_book[\
+            (self.tick_book['underlying']==self.underlying_name) | \
+            (self.tick_book['underlying'].isnull())]
+
+        self.instruments_book = self.tick_book[['ticker','underlying','strike','call_put','expiry_datetime']]
+        self.instruments_book.drop_duplicates(inplace=True)
+
+        return True
+
+    def place_order (self):
+        pass
+
+    def ltp ():
+        pass
 
 
     pass
