@@ -1018,7 +1018,6 @@ class Exchange:
         self.prepare_data_book(current_datetime=current_datetime,
             historical_data_folder_name=historical_data_folder_name)
         
-
     
     @keep_log(default_return=False)
     def prepare_data_book(self,current_datetime,
@@ -1054,31 +1053,70 @@ class Exchange:
         data_file_paths.extend(equity_file_paths)
         self.tick_book = pd.concat(map(pd.read_csv,data_file_paths))
 
-        self.tick_book['expiry_datetime'] = pd.to_datetime(\
-                    self.tick_book['expiry_date']) + \
-                        timedelta (hours=15, minutes =30)
-        self.tick_book['timestamp'] = pd.to_datetime(\
-                    self.tick_book['timestamp'])
+        
         self.tick_book.rename(columns={'Ticker':'ticker',
                         'LTP':'ltp',
                         'BuyPrice':'buy_price',
                         'SellPrice':'sell_price'},
                         inplace=True)
-        self.tick_book = self.tick_book[['ticker','ltp','buy_price','sell_price','underlying','strike','call_put','expiry_datetime','timestamp']]
+        self.tick_book = self.tick_book[['ticker','ltp','buy_price',\
+                    'sell_price','underlying','strike','call_put',\
+                    'expiry_datetime','timestamp']]
         self.tick_book = self.tick_book[\
             (self.tick_book['underlying']==self.underlying_name) | \
             (self.tick_book['underlying'].isnull())]
+        
+        self.tick_book['expiry_datetime'] = pd.to_datetime(\
+                    self.tick_book['expiry_date']) + \
+                        timedelta (hours=15, minutes =30)
+        self.tick_book['timestamp'] = pd.to_datetime(\
+                    self.tick_book['timestamp'])
 
-        self.instruments_book = self.tick_book[['ticker','underlying','strike','call_put','expiry_datetime']]
+        df_group = self.tick_book.groupby(['ticker','timestamp'])
+        self.tick_book['duplicate_serial'] = df_group[['ltp']].cumcount()
+        self.tick_book['duplicate_count'] = df_group['ltp'].transform('size')
+        del df_group
+        self.tick_book['duplicate_fraction'] = \
+            pd.to_timedelta(df['duplicate_serial'] \
+                / df['duplicate_count'], unit='s')
+        self.tick_book['timestamp'] = df['timestamp'] \
+                    + df['duplicate_fraction']
+        self.tick_book = self.tick_book[['ticker','ltp','buy_price',\
+                    'sell_price','underlying','strike','call_put',\
+                    'expiry_datetime','timestamp']]
+
+        self.instruments_book = self.tick_book[['ticker','underlying',\
+                    'strike','call_put','expiry_datetime']]
         self.instruments_book.drop_duplicates(inplace=True)
 
         return True
 
-    def place_order (self):
-        pass
+    def ltp(self,instruments,current_datetime, initiation_time) -> float:
 
-    def ltp ():
-        pass
+        slippage = perf_counter() - initiation_time
+        current_datetime_slippage_adj = current_datetime + timedelta(seconds=slippage)
+        current_datetime_slippage_adj
+
+        if type(instruments) == list:
+            ltp_df = pd.DataFrame(instruments)
+            ltp_df = ltp_df.merge(df,left_on=0, right_on='ticker')
+            ltp_df = ltp_df[ltp_df['timestamp']<=current_datetime_slippage_adj].drop_duplicates(subset='ticker',keep='last')
+            ltp_df = ltp_df[['ticker','ltp']]
+            return ltp_df
+        else:
+            k = df[(df['ticker']==instruments)&(df['timestamp']<=current_datetime_slippage_adj)][['ltp']].iloc[-1][0]
+            return k
+
+
+    def quote (self,instruments,current_datetime, initiation_time):
+        #Quote
+
+        slippage = perf_counter() - initiation_time
+        current_datetime_slippage_adj = current_datetime + timedelta(seconds=slippage)
+        current_datetime_slippage_adj
+
+        quote = df[(df['ticker']==a)&(df['timestamp']<=current_datetime_slippage_adj)][['buy_price','sell_price']].iloc[-1]
+        return quote
 
 
     pass
