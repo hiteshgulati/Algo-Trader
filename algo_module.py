@@ -1,8 +1,10 @@
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from time import perf_counter, sleep, perf_counter_ns
 from py_vollib.black_scholes.implied_volatility import implied_volatility as bs_iv
 from py_vollib.black_scholes.greeks import analytical as greeks
+import py_lets_be_rational.exceptions as greeks_exceptions
 from broker_module import Broker
 import logging
 from pandas.core.arrays import boolean
@@ -166,7 +168,7 @@ def keep_log (**kwargs_decorator):
                     'className': args[0].__class__.__name__,
                     'functionName': original_function.__name__}
             try:
-                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator)
+                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs_decorator)
             except: 
                 #pass if logger is not set
                 pass
@@ -253,7 +255,6 @@ class Data_guy:
         self.data_df = pd.DataFrame()
         timestamp_string = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
         self.data_df_store_path = f'./Data_df/Data {timestamp_string} team.csv'
-        self.data_df.to_csv(self.data_df_store_path, index=False)
         
         self.broker = broker
         self.trader = trader
@@ -312,7 +313,6 @@ class Data_guy:
 
         #Update max pnl if last max pnl breached
         if self.current_pnl > self.max_pnl: self.max_pnl = self.current_pnl
-        logger1.log(pnl=self.current_pnl, max_pnl=self.max_pnl)
         self.trailing_pnl = self.current_pnl - self.max_pnl
 
         #update current ltp
@@ -455,6 +455,9 @@ class Data_guy:
 
         Args:
             df (dataframe): DataFrame of options. The df should have columns:
+                            - instrument_ltp
+                            - strike
+                            - call_put
 
             greek_type (str, optional): delta/gamma/rho/theta/vega. Defaults to 'delta'.
             risk_free_rate (float, optional): risk free rate to consider. Defaults to .07.
@@ -466,73 +469,82 @@ class Data_guy:
         """        
         ## df should have expiry_datetime, call_put, instrument_ltp and strike columns
 
-        logger1.log(greek_type=greek_type,
-            risk_free_rate=risk_free_rate,
-            df=df.to_json())
+        
 
-
+        
         if not inplace:
             df = df.copy()
 
-        df['time_to_expiry_years'] = (self.expiry_datetime \
-                                      - self.current_datetime).total_seconds() \
-                                     / timedelta(days=364).total_seconds()
+        time_to_expiry_years = (self.expiry_datetime \
+                - self.current_datetime).total_seconds() \
+                / timedelta(days=364).total_seconds()
 
         call_put_pyvollib_map = {'CE': 'c', 'PE': 'p'}
         df['call_put_pyvollib'] = df['call_put'].map(call_put_pyvollib_map)
 
-        #function to calculate IV for each row
-        def calculate_iv(each_row):
-            iv_value = 0
-            try:
-                iv_value = bs_iv(price=each_row['instrument_ltp'], S=self.current_ltp,
-                                 K=each_row['strike'], t=each_row['time_to_expiry_years'],
-                                 r=risk_free_rate, flag=each_row['call_put_pyvollib'])
 
-            except Exception as e:
+        #function to calculate IV for each row
+        def iv(instrument_ltp, strike, call_put_pyvollib):
+            try:
+                iv_value = bs_iv(price=instrument_ltp, S=self.current_ltp,
+                                    K=strike, t=time_to_expiry_years,
+                                    r=risk_free_rate,
+                                    flag=call_put_pyvollib)
+
+            except greeks_exceptions.BelowIntrinsicException:
                 iv_value = None
+            except Exception as e:
+                logger1.log(exception=e)
             return iv_value
+        v_iv = np.vectorize(iv)
 
         #function to calculate desired greek for each row
-        def calculate_greek(each_row):
-            greek_value = 0
+        def greek(strike, call_put_pyvollib, implied_volatility):
             try:
                 if greek_type == 'delta':
-                    greek_value = greeks.delta(flag=each_row['call_put_pyvollib'],
-                                               S=self.current_ltp, K=each_row['strike'],
-                                               t=each_row['time_to_expiry_years'], r=risk_free_rate,
-                                               sigma=each_row['implied_volatility'])
+                    greek_value = greeks.delta(flag=call_put_pyvollib,
+                                               S=self.current_ltp, K=strike,
+                                               t=time_to_expiry_years, r=risk_free_rate,
+                                               sigma=implied_volatility)
                 elif greek_type == 'gamma':
-                    greek_value = greeks.gamma(flag=each_row['call_put_pyvollib'],
-                                               S=self.current_ltp, K=each_row['strike'],
-                                               t=each_row['time_to_expiry_years'], r=risk_free_rate,
-                                               sigma=each_row['implied_volatility'])
+                    greek_value = greeks.gamma(flag=call_put_pyvollib,
+                                               S=self.current_ltp, K=strike,
+                                               t=time_to_expiry_years, r=risk_free_rate,
+                                               sigma=implied_volatility)
                 elif greek_type == 'rho':
-                    greek_value = greeks.rho(flag=each_row['call_put_pyvollib'],
-                                             S=self.current_ltp, K=each_row['strike'],
-                                             t=each_row['time_to_expiry_years'], r=risk_free_rate,
-                                             sigma=each_row['implied_volatility'])
+                    greek_value = greeks.rho(flag=call_put_pyvollib,
+                                               S=self.current_ltp, K=strike,
+                                               t=time_to_expiry_years, r=risk_free_rate,
+                                               sigma=implied_volatility)
                 elif greek_type == 'theta':
-                    greek_value = greeks.theta(flag=each_row['call_put_pyvollib'],
-                                               S=self.current_ltp, K=each_row['strike'],
-                                               t=each_row['time_to_expiry_years'], r=risk_free_rate,
-                                               sigma=each_row['implied_volatility'])
+                    greek_value = greeks.theta(flag=call_put_pyvollib,
+                                               S=self.current_ltp, K=strike,
+                                               t=time_to_expiry_years, r=risk_free_rate,
+                                               sigma=implied_volatility)
                 elif greek_type == 'vega':
-                    greek_value = greeks.vega(flag=each_row['call_put_pyvollib'],
-                                              S=self.current_ltp, K=each_row['strike'],
-                                              t=each_row['time_to_expiry_years'], r=risk_free_rate,
-                                              sigma=each_row['implied_volatility'])
+                    greek_value = greeks.vega(flag=call_put_pyvollib,
+                                               S=self.current_ltp, K=strike,
+                                               t=time_to_expiry_years, r=risk_free_rate,
+                                               sigma=implied_volatility)
             except Exception as e:
                 greek_value = None
             return greek_value
+        v_greek = np.vectorize(greek)
+        
 
         #calculate IV first and filter based on filter iv value
-        df['implied_volatility'] = df.apply(calculate_iv, axis=1)
+        df['implied_volatility'] = v_iv(df['instrument_ltp'].to_numpy(),\
+                        df['strike'].to_numpy(),\
+                        df['call_put_pyvollib'].to_numpy())
+
         df = df[df['implied_volatility'] < filter_iv]
 
         #calculate desired greek value
-        df[greek_type] = df.apply(calculate_greek, axis=1)
-        df.drop(columns=['call_put_pyvollib', 'time_to_expiry_years'], inplace=True)
+        df[greek_type] = v_greek(df['strike'].to_numpy()\
+                    ,df['call_put_pyvollib'].to_numpy()\
+                    ,df['implied_volatility'].to_numpy())
+    
+        df.drop(columns=['call_put_pyvollib'], inplace=True)
 
         return df
 
@@ -1469,14 +1481,11 @@ class Trader:
             fno_df=fno_df, broker_for='data')
 
         #Get LTP of all options
-        fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(fno_df, exchange='NFO')
+        fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(instruments_df = fno_df, exchange='NFO')
 
         #Calculate delta for options
         if based_on_value=='delta':
             fno_df = self.data_guy.calculate_greeks(fno_df, greek_type='delta', inplace=False)
-
-            # fno_df.to_csv(f'''interim_df/calculate_delta_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.csv''',
-            #                 index=False)
 
         fno_df['value'] = value
         fno_df['minimize'] = abs(fno_df[based_on_value] - fno_df['value'])

@@ -25,9 +25,9 @@ if __name__ == '__main__':
     # close_time = datetime(2020,1,1,15,7).time()
     # end_time = datetime(2020,1,1,15,10,0).time()
 
-    start_time = datetime(2020,1,1,3,2).time()
-    close_time = datetime(2020,1,1,3,8).time()
-    end_time = datetime(2020,1,1,3,8,30).time()
+    start_time = datetime(2020,1,1,2,8).time()
+    close_time = datetime(2020,1,1,2,31).time()
+    end_time = datetime(2020,1,1,2,31,30).time()
 
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     is_kite_access_token_available = True
 
-    kite_request_token='hn6w2DpFpOoKOLH44BtxGF6C2GmecI0K'
+    kite_request_token='cVcYOdYyZbhD8p12gUs72xbxYGkN8tJN'
 
     parent = os.path.dirname(os.getcwd())
     file_path = os.path.join(parent,'broker_secret.json')
@@ -50,7 +50,8 @@ if __name__ == '__main__':
         with open (file_path, "w") as outfile:
             json.dump(broker_secret,outfile)
 
-    logs_folder_path = os.path.join(parent,'logs')
+    # logs_folder_path = os.path.join(parent,'logs')
+    logs_folder_path = os.path.join(os.getcwd(),'logs')
 
     algo_manager = Algo_manager(broker_for_trade='paper',
                     broker_for_data='zerodha',
@@ -75,7 +76,7 @@ if __name__ == '__main__':
                     trailing_loss_trigger_per_lot = 1_500,
                     non_expiry_day_no_candle_time = non_expiry_day_no_candle_time,
                     expiry_day_no_candle_time = expiry_day_no_candle_time,
-                    candle_length=2)
+                    candle_length=1)
     
     count = 0
     t0 = perf_counter()
