@@ -1485,7 +1485,7 @@ class Trader:
 
         #Calculate delta for options
         if based_on_value=='delta':
-            fno_df = self.data_guy.calculate_greeks(fno_df, greek_type='delta', inplace=False)
+            fno_df = self.data_guy.calculate_greeks(df=fno_df, greek_type='delta', inplace=False)
 
         fno_df['value'] = value
         fno_df['minimize'] = abs(fno_df[based_on_value] - fno_df['value'])
