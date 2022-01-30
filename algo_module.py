@@ -287,7 +287,7 @@ class Data_guy:
 
     
     @keep_log(default_return=False)
-    def update_data(self, current_datetime=None) -> boolean:
+    def update_data(self, initiation_time, current_datetime=None) -> boolean:
         """Update data based on the current_datetime
             Items updated are:
                 PnL
@@ -306,7 +306,10 @@ class Data_guy:
         self.current_datetime = current_datetime
 
         # Fetch strategy pnl and brokerage/trader fee
-        self.strategy_pnl = round(self.broker.get_pnl(),2)
+        self.strategy_pnl = round(self.broker.get_pnl(\
+                        current_datetime=current_datetime,
+                        initiation_time=initiation_time),\
+                        2)
         self.brokerage_pnl = round(self.trader.total_trade_fee,2)
         self.current_pnl = round(self.strategy_pnl  + self.brokerage_pnl,2)
 
@@ -316,7 +319,9 @@ class Data_guy:
         self.trailing_pnl = self.current_pnl - self.max_pnl
 
         #update current ltp
-        self.current_ltp = self.broker.get_ltp(self.underlying_name)
+        self.current_ltp = self.broker.get_ltp(self.underlying_name,
+                    current_datetime=self.current_datetime,
+                    initiation_time=initiation_time)
 
         #update candles
         self.candle_t_2 = self.candle(t_minus=2,candle_type='fixed')
@@ -709,7 +714,8 @@ class Events_and_actions:
         return display_string
 
     @keep_log()
-    def events_to_actions(self):
+    def events_to_actions(self,
+        current_datetime, initiation_time):
         """
         Check all events based on the priority
         if event conditions are satisfied
@@ -741,33 +747,71 @@ class Events_and_actions:
             strangle_strike_low = self.strangle_strike_low)
 
         if self.event_total_loss_reached():
-            self.action_close_the_day()
+            self.action_close_the_day(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_non_expiry_day_trailing_loss_reached():
-            self.action_close_the_day()
+            self.action_close_the_day(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_expiry_day_trailing_loss_reached():
-            self.action_close_the_day()
+            self.action_close_the_day(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_shop_close_time():
-            self.action_close_the_day()
+            self.action_close_the_day(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_exit_straddle():
-            self.action_exit_position()
+            self.action_exit_position(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_exit_strangle():
-            self.action_exit_position()
+            self.action_exit_position(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_expiry_day_enter_position_no_candle_call_first():
-            self.action_enter_position_call_first()
+            self.action_enter_position_call_first(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_expiry_day_enter_position_no_candle_put_first():
-            self.action_enter_position_put_first()
+            self.action_enter_position_put_first(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)
         elif self.event_non_expiry_day_enter_position_no_candle_call_first():
-            self.action_enter_position_call_first()
+            self.action_enter_position_call_first(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)
         elif self.event_non_expiry_day_enter_position_no_candle_put_first():
-            self.action_enter_position_put_first()
+            self.action_enter_position_put_first(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_enter_position_call_first():
-            self.action_enter_position_call_first()
+            self.action_enter_position_call_first(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_enter_position_put_first():
-            self.action_enter_position_put_first()
+            self.action_enter_position_put_first(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time
+            )
         elif self.event_expiry_day_open_shop():
-            self.action_expiry_day_buy_hedge()
+            self.action_expiry_day_buy_hedge(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)
         elif self.event_non_expiry_day_open_shop():
-            self.action_non_expiry_day_buy_hedge()
+            self.action_non_expiry_day_buy_hedge(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)
 
         logger1.log(at='end',
             is_closed=self.is_closed,
@@ -944,7 +988,9 @@ class Events_and_actions:
 
 
     @keep_log(level='warning')
-    def action_expiry_day_buy_hedge(self) -> boolean:
+    def action_expiry_day_buy_hedge(self,
+                current_datetime, 
+                initiation_time) -> boolean:
         """
         Buy hedges
         Expiry Day: Buy ₹ 3 Call and ₹ 3 Put
@@ -959,7 +1005,9 @@ class Events_and_actions:
         #identify strike of ₹ 3 Call
         strike, _ = self.trader.strike_discovery(underlying=self.data_guy.underlying_name,
                                                     call_put='CE', expiry_datetime=self.data_guy.expiry_datetime,
-                                                    based_on_value='price', value=3)
+                                                    based_on_value='price', value=3,
+                                                    current_datetime=current_datetime,
+                                                    initiation_time=initiation_time)
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()), \
                     'strike': strike, \
@@ -973,7 +1021,9 @@ class Events_and_actions:
         #identify strike of ₹ 3 Put
         strike, _ = self.trader.strike_discovery(underlying=self.data_guy.underlying_name,
                                                     call_put='PE', expiry_datetime=self.data_guy.expiry_datetime,
-                                                    based_on_value='price', value=3)
+                                                    based_on_value='price', value=3,
+                                                    current_datetime=current_datetime,
+                                                    initiation_time=initiation_time)
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()), \
                     'strike': strike, \
@@ -985,7 +1035,9 @@ class Events_and_actions:
         self.orderbook = self.orderbook.append(order, ignore_index=True)
 
         #Call trader to execute orders in the orderbook
-        orders_executed = self.trader.place_order_in_orderbook()
+        orders_executed = self.trader.place_order_in_orderbook(\
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
 
         if orders_executed:
             #Update Variable to indicate change in state
@@ -996,7 +1048,8 @@ class Events_and_actions:
 
 
     @keep_log(level='warning')
-    def action_non_expiry_day_buy_hedge(self) -> boolean:
+    def action_non_expiry_day_buy_hedge(self,
+        current_datetime, initiation_time) -> boolean:
         """
         Buy hedges
         Expiry Day: Buy ₹ 3 Call and ₹ 3 Put
@@ -1010,7 +1063,9 @@ class Events_and_actions:
         #identify strike of ₹ 5 Call
         strike, _ = self.trader.strike_discovery(underlying=self.data_guy.underlying_name,
                                                     call_put='CE', expiry_datetime=self.data_guy.expiry_datetime,
-                                                    based_on_value='price', value=5)
+                                                    based_on_value='price', value=5,
+                                                    current_datetime=current_datetime,
+                                                    initiation_time=initiation_time)
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()), 'strike': strike, 'underlying': self.data_guy.underlying_name,
                     'call_put': 'CE', 'expiry_datetime': self.data_guy.expiry_datetime,
@@ -1021,7 +1076,9 @@ class Events_and_actions:
         #identify strike of ₹ 5 Put
         strike, _ = self.trader.strike_discovery(underlying=self.data_guy.underlying_name,
                                                     call_put='PE', expiry_datetime=self.data_guy.expiry_datetime,
-                                                    based_on_value='price', value=5)
+                                                    based_on_value='price', value=5,
+                                                    current_datetime=current_datetime,
+                                                    initiation_time=initiation_time)
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()), 'strike': strike, 'underlying': self.data_guy.underlying_name,
                     'call_put': 'PE', 'expiry_datetime': self.data_guy.expiry_datetime,
@@ -1030,7 +1087,9 @@ class Events_and_actions:
         self.orderbook = self.orderbook.append(order, ignore_index=True)
 
         #Call trader to execute orders in the orderbook
-        orders_executed = self.trader.place_order_in_orderbook()
+        orders_executed = self.trader.place_order_in_orderbook(\
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
 
         if orders_executed:
             #Update Variable to indicate change in state
@@ -1040,7 +1099,8 @@ class Events_and_actions:
         return output
 
     @keep_log(level='warning')
-    def action_enter_position_put_first(self) -> boolean:
+    def action_enter_position_put_first(self,
+            current_datetime, initiation_time) -> boolean:
         """
         Enter Straddle/Strangle position
         Step 1) Sell Put with delta close to .5
@@ -1055,7 +1115,9 @@ class Events_and_actions:
         strike_put, instrument_ltp = self.trader.strike_discovery(underlying=self.data_guy.underlying_name,
                                                                     call_put='PE',
                                                                     expiry_datetime=self.data_guy.expiry_datetime,
-                                                                    based_on_value='delta', value=-.5)
+                                                                    based_on_value='delta', value=-.5,
+                                                                    current_datetime=current_datetime,
+                                                                    initiation_time=initiation_time)
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()), 'strike': strike_put, 'underlying': self.data_guy.underlying_name,
                     'call_put': 'PE', 'expiry_datetime': self.data_guy.expiry_datetime,
@@ -1066,7 +1128,9 @@ class Events_and_actions:
         #Identify Call with price close to Put
         strike_call, _ = self.trader.strike_discovery(underlying=self.data_guy.underlying_name,
                                                         call_put='CE', expiry_datetime=self.data_guy.expiry_datetime,
-                                                        based_on_value='price', value=instrument_ltp)
+                                                        based_on_value='price', value=instrument_ltp,
+                                                        current_datetime=current_datetime,
+                                                        initiation_time=initiation_time)
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()), 'strike': strike_call,
                     'underlying': self.data_guy.underlying_name,
@@ -1076,7 +1140,9 @@ class Events_and_actions:
         self.orderbook = self.orderbook.append(order, ignore_index=True)
 
         #Call trader to execute orders in the orderbook
-        orders_executed = self.trader.place_order_in_orderbook()
+        orders_executed = self.trader.place_order_in_orderbook(\
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
 
         if orders_executed:
             #Update Variable to indicate change in state
@@ -1096,7 +1162,8 @@ class Events_and_actions:
         return output
 
     @keep_log(level='warning')
-    def action_enter_position_call_first(self) -> boolean:
+    def action_enter_position_call_first(self,
+            current_datetime, initiation_time) -> boolean:
         """
         Enter Straddle/Strangle position
         Step 1) Sell Put with delta close to .5
@@ -1110,7 +1177,9 @@ class Events_and_actions:
         strike_call, instrument_ltp = self.trader.strike_discovery( \
             underlying=self.data_guy.underlying_name,
             call_put='CE', expiry_datetime=self.data_guy.expiry_datetime,
-            based_on_value='delta', value=.5)
+            based_on_value='delta', value=.5,
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
         
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()),
@@ -1126,7 +1195,9 @@ class Events_and_actions:
         strike_put, _ = self.trader.strike_discovery( \
             underlying=self.data_guy.underlying_name,
             call_put='PE', expiry_datetime=self.data_guy.expiry_datetime,
-            based_on_value='price', value=instrument_ltp)
+            based_on_value='price', value=instrument_ltp,
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
         
         #Add the discovered option in orderbook
         order = {'order_id': str(datetime.now()),
@@ -1139,7 +1210,10 @@ class Events_and_actions:
         self.orderbook = self.orderbook.append(order, ignore_index=True)
 
         #Call trader to execute orders in the orderbook
-        orders_executed = self.trader.place_order_in_orderbook()
+        orders_executed = self.trader.place_order_in_orderbook(
+            current_datetime=current_datetime,
+            initiation_time=initiation_time
+        )
 
         if orders_executed:
             #Update Variable to indicate change in state
@@ -1161,7 +1235,8 @@ class Events_and_actions:
 
 
     @keep_log(level='warning')
-    def action_exit_position(self) -> boolean:
+    def action_exit_position(self,
+        current_datetime, initiation_time) -> boolean:
         """Exit current position
 
         Returns:
@@ -1194,7 +1269,10 @@ class Events_and_actions:
             self.orderbook = self.orderbook.append(order, ignore_index=True)
         
         #Call trader to execute orders in the orderbook
-        orders_executed = self.trader.place_order_in_orderbook(instrument_id_available=True)
+        orders_executed = self.trader.place_order_in_orderbook(
+            instrument_id_available=True,
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
 
         if orders_executed:
             #Update Variable to indicate change in state
@@ -1208,7 +1286,8 @@ class Events_and_actions:
         return output
 
     @keep_log(level='warning')
-    def action_close_the_day(self) -> boolean:
+    def action_close_the_day(self,
+        current_datetime, initiation_time) -> boolean:
         """Close the day and square off all positions
 
         Returns:
@@ -1246,7 +1325,10 @@ class Events_and_actions:
                 self.orderbook = self.orderbook.append(order, ignore_index=True)
 
         #Call trader to execute orders in the orderbook
-        orders_executed = self.trader.place_order_in_orderbook(instrument_id_available=True)
+        orders_executed = self.trader.place_order_in_orderbook(
+            instrument_id_available=True,
+            current_datetime=current_datetime,
+            initiation_time=initiation_time)
 
         if orders_executed:
             #Update Variable to indicate change in state
@@ -1300,7 +1382,9 @@ class Trader:
 
 
     @keep_log(default_return=False)
-    def place_order_in_orderbook(self, wait_time_secs=3, instrument_id_available=False) -> boolean:
+    def place_order_in_orderbook(self, wait_time_secs=3, 
+            instrument_id_available=False,
+            current_datetime, initiation_time) -> boolean:
         """Iters through the orderbook and places all orders
             Two ways orderbook can be used
             1) instrument_ID is available:
@@ -1351,7 +1435,9 @@ class Trader:
                     instrument_id=each_order['instrument_id_trade'],
                     buy_sell=each_order['buy_sell'],
                     quantity=each_order['quantity'],
-                    exchange=each_order['exchange'])
+                    exchange=each_order['exchange'],
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time)
                 broker_order_id_list.append(broker_order_id)
                 self.events_and_actions.orderbook.drop(idx, inplace=True)
                 self.total_trade_fee += self.per_trade_fee
@@ -1372,7 +1458,9 @@ class Trader:
                                                                     )
                 broker_order_id = self.broker.place_market_order(instrument_id=instrument_id,
                                                                     buy_sell=each_order['buy_sell'],
-                                                                    quantity=each_order['quantity'])
+                                                                    quantity=each_order['quantity'],
+                                                                    current_datetime=current_datetime,
+                                                                    initiation_time=initiation_time)
                 broker_order_id_list.append(broker_order_id)
                 self.events_and_actions.orderbook.drop(idx, inplace=True)
                 self.total_trade_fee += self.per_trade_fee
@@ -1404,7 +1492,8 @@ class Trader:
 
     @keep_log(default_return=(None,None))
     def strike_discovery(self, underlying, call_put, expiry_datetime, \
-                         based_on_value, value, range_from_atm=2000) -> (int,float):
+                         based_on_value, value, range_from_atm=2000,
+                         current_datetime, initiation_time) -> (int,float):
         """
         Scans through multiple options and returns best suits Strike which has:
             Price or Delta closest to Value
@@ -1469,7 +1558,10 @@ class Trader:
             fno_df=fno_df, broker_for='data')
 
         #Get LTP of all options
-        fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(fno_df, exchange='NFO')
+        fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(
+                instrument_df=fno_df, exchange='NFO',
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)
 
         #Calculate delta for options
         if based_on_value=='delta':
@@ -1666,14 +1758,17 @@ class Algo_manager:
         Args:
             current_datetime (datetime.datetime, optional): Enter current datetime. Defaults to None.
         """        
-
+        initiation_time = perf_counter()
         #if current datetime is not provided, default it to now()
         if current_datetime is None: current_datetime = datetime.now()
 
         #Step 1: Update data for current_datetime
-        self.data_guy.update_data(current_datetime=current_datetime)
+        self.data_guy.update_data(current_datetime=current_datetime,
+            initiation_time=initiation_time)
         
         #Step 2: Check all events_and_actions
-        self.events_and_actions.events_to_actions()
+        self.events_and_actions.events_to_actions(
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)
 
 

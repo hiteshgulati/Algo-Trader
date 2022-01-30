@@ -6,7 +6,7 @@ from kiteconnect import KiteConnect
 # import kite_connection
 from ks_api_client import ks_api
 from functools import wraps
-from time import perf_counter_ns
+from time import perf_counter_ns, perf_counter
 import os
 
 logger1 = None
@@ -176,7 +176,7 @@ class Broker:
                 used only if Kotak is being used as a broker. 
                 Defaults to None.
             logger (Logger, optional): Logger object used to maintain logs. Defaults to None.
-            current_datetime (datetime.datetim, optional): Current Datetime of simulation. Defaults to None.
+            current_datetime (datetime.datetime, optional): Current Datetime of simulation. Defaults to None.
         """            
         if current_datetime is None: current_datetime = datetime.now()
         global logger1
@@ -192,9 +192,7 @@ class Broker:
         self.broker_for_data = broker_for_data.upper()
         self.kite = None
         self.kotak = None
-
-        #TODO: Implement backtest object
-        self.backtest_object = None
+        self.sim = None
 
         #Instruments Book contains all 
         #   available instruments in the market 
@@ -202,7 +200,6 @@ class Broker:
         #   instrument id, expiry datetime
         self.kite_instruments_book = None
         self.kotak_instruments_book = None
-        self.paper_instruments_book = None
 
         #Set market broker object for Trade Broker
         self.set_broker_object(broker_name=self.broker_for_trade,
@@ -337,6 +334,15 @@ class Broker:
 
             return True
 
+        elif broker_name == "SIM":
+            self.sim = Exchange()
+            self.sim.set_parameters(current_datetime=current_datetime,
+                underlying_name = self.underlying_name,
+                historical_data_folder_name=historical_data_folder_name,
+                fno_folder_name=fno_folder_name,
+                equity_folder_name=equity_folder_name)
+            return True
+
         elif broker_name == 'PAPER':
             return True
         elif broker_name == 'BACKTEST':
@@ -408,6 +414,15 @@ class Broker:
             
 
             return instrument_id
+
+        elif instrument_id_broker == 'SIM':
+            instrument_id = str(self.sim.instruments_book[(self.sim.instruments_book['underlying']==underlying)
+                    &(self.sim.instruments_book['call_put']==call_put)
+                    &(self.sim.instruments_book['expiry_datetime']==expiry_datetime)
+                    &(self.sim.instruments_book['strike']==strike)]['ticker'].iloc[0])
+        
+            return instrument_id
+        
         elif instrument_id_broker== 'BACKTEST':
             instrument_id = None 
             ## GET INSTRUMENT ID FOR BACKTEST
@@ -481,6 +496,18 @@ class Broker:
             
             return instrument_id
 
+        elif instrument_id_broker == 'SIM':
+            instrument_id = fno_df.merge(self.self.sim.instruments_book,how='left',\
+                    left_on=['underlying','call_put','expiry_datetime','strike'], 
+                    right_on=['underlying','call_put','expiry_datetime','strike'])\
+                    ['ticker'].astype(str)
+            
+            logger1.log(instrument_id_broker=instrument_id_broker,
+                fno_df = fno_df.to_json(),
+                instrument_id=instrument_id.to_json())
+
+            return instrument_id
+
         elif instrument_id_broker == 'BACKTEST':
             instrument_id = None 
             ## GET INSTRUMENT ID FOR BACKTEST
@@ -488,7 +515,8 @@ class Broker:
 
     @keep_log()
     def place_market_order(self, instrument_id, 
-        buy_sell, quantity, exchange='NFO') -> str:
+        buy_sell, quantity, current_datetime, 
+        initiation_time, exchange='NFO') -> str:
         """(T/D)
         Place Intraday market order on trade Broker
 
@@ -574,11 +602,20 @@ class Broker:
                     ['depth']\
                     [buy_sell_counter_trade][0]\
                     ['price']
+            
             elif self.broker_for_data == 'KOTAK':
+                price = -1
+            elif self.broker_for_data == "SIM":
+                # order_instrument = ltp =  f'{exchange}:{instrument_id}'
+                quote = self.sim.quote(instrument_id=instrument_id,
+                    current_datetime=current_datetime, 
+                    initiation_time=initiation_time)
+                buy_sell_counter_trade = buy_sell_counter_trade + "_price"
+                price = quote[buy_sell_counter_trade]
+                
                 price = 0
             else:
-                price = 0
-            
+                price = -1
 
             broker_order_id = str(datetime.now())
             position = {'broker_order_id':broker_order_id,\
@@ -595,7 +632,8 @@ class Broker:
             self.tradebook = self.tradebook.append(\
                 position,ignore_index=True)
 
-            self.get_pnl()
+            self.get_pnl(current_datetime=current_datetime,
+                        initiation_time=initiation_time)
 
             self.tradebook.to_csv(self.trades_df_name
                     ,index=False)
@@ -644,7 +682,7 @@ class Broker:
 
         #Not to be used for Paper trade as no order is punched
         elif self.broker_for_trade == "PAPER":
-            return True
+            return False
 
         elif self.broker_for_trade == "BACKTEST":
             ## PLACE ORDER ON BACKTEST
@@ -652,7 +690,9 @@ class Broker:
 
 
     @keep_log()
-    def get_ltp (self, instrument_id, exchange="NSE") -> float:
+    def get_ltp (self, instrument_id, 
+        current_datetime, initiation_time,
+        exchange="NSE") -> float:
         """(D)
         Get current LTP. Note not applicable for Paper Broker
 
@@ -684,13 +724,18 @@ class Broker:
                 ['success'][0]['lastPrice'])
 
             return ltp
-        elif self.broker_for_data == 'BACKTEST':
-            ## GET LTP FROM BACKTEST
-            return None
+        elif self.broker_for_data == 'SIM':
+            if instrument_id == "NIFTY": instrument_id = "NIFTY 50.NSE_IDX"
+            ltp =  self.sim.ltp(instrument_id,
+                current_datetime=current_datetime, 
+                initiation_time=initiation_time)
+            return ltp
 
 
     @keep_log()
-    def get_multiple_ltp (self, instrument_df, exchange="NFO") -> pd.Series:
+    def get_multiple_ltp (self, instrument_df, 
+        current_datetime, initiation_time,
+        exchange="NFO") -> pd.Series:
         """(D)
         Get current LTP of multiple instruments. 
         Note not applicable for Paper Broker
@@ -727,7 +772,9 @@ class Broker:
             df['ltp'] = None
             for idx,each_instrument in df.iterrows():
                 instrument_id = each_instrument['instrument_id_data']
-                df.loc[idx,'ltp'] = self.get_ltp(instrument_id=instrument_id)
+                df.loc[idx,'ltp'] = self.get_ltp(instrument_id=instrument_id,
+                        current_datetime=current_datetime,
+                        initiation_time=initiation_time)
             
             ltp = df['ltp']
 
@@ -735,8 +782,11 @@ class Broker:
                 ltp_df=ltp.to_json())
             return ltp
 
-        elif self.broker_for_data == 'BACKTEST':
-            ## GET LTP FROM BACKTEST
+        elif self.broker_for_data == 'SIM':
+            df = instrument_df.copy()
+            ltp = self.sim.ltp(instruments=df,
+                current_datetime=current_datetime,
+                initiation_time=initiation_time)['ltp']
             return None
 
 
@@ -778,14 +828,10 @@ class Broker:
             positions_df = positions_df[['instrument_id_trade','quantity','exchange']]
 
             return positions_df
-            
-        elif self.broker_for_trade == 'BACKTEST':
-            ## GET PNL FROM BACKTEST
-            return None
 
     
     @keep_log()
-    def get_pnl (self) -> float:
+    def get_pnl (self,current_datetime, initiation_time) -> float:
         """(T)
         Get day's pnl
         Steps followed:
@@ -838,7 +884,9 @@ class Broker:
                                     self.positions_book['instrument_id']
             # Get LTP of all instruments
             self.positions_book['ltp'] = self.get_multiple_ltp\
-                                        (self.positions_book,\
+                                        (instrument_df = self.positions_book,\
+                                        current_datetime = current_datetime, 
+                                        initiation_time = initiation_time,
                                         exchange='NFO')
             #Calculate change in price by LTP - average price
             self.positions_book['price_change'] = self.positions_book['ltp']\
@@ -918,9 +966,12 @@ class Broker:
             
             return next_expiry_datetime
 
-        elif self.broker_for_data == 'PAPER TRADE':
-            ## GET NEXT EXPIRY DATE FROM PAPER
-            return None
+        elif self.broker_for_data == 'SIM':
+            next_expiry_datetime = self.sim.instruments_book[\
+                                    (self.sim.instruments_book['underlying']==underlying.upper()) 
+                                    & (self.sim.instruments_book['call_put'] == 'CE')]\
+                                    ['expiry_datetime'].min()
+            return next_expiry_datetime
 
 
     @keep_log()
@@ -960,14 +1011,22 @@ class Broker:
             available_strikes = list(available_strikes)
 
             return available_strikes
-        if self.broker_for_data== 'BACKTEST':
+        if self.broker_for_data== 'SIM':
             #GET AVAILABLE STRIKES FROM BACKTEST
-            return None
+            available_strikes = self.sim.instruments_book[(\
+                self.sim.instruments_book['name']==underlying) 
+                & (self.sim.instruments_book['call_put']==call_put)
+                &(self.sim.instruments_book['expiry_datetime']==expiry_datetime)] \
+                ['strike'].unique()
+            available_strikes = list(available_strikes)
+
+            return available_strikes
 
 
     @keep_log()
     def is_order_complete (self, broker_order_id) -> Boolean:
-        """Send confirmation if the order is completed
+        """(T)
+        Send confirmation if the order is completed
 
         Args:
             broker_order_id (str): id of order to be confirmed
@@ -997,11 +1056,7 @@ class Broker:
 
         #Always return True for Paper trade as orders are not punched
         elif self.broker_for_trade == 'PAPER':
-
             return True
-        elif self.broker_for_trade == 'BACKTEST':
-            ## ADD ORDER VERIFICATION for BACKTEST
-            return False
 
             
 
@@ -1010,13 +1065,16 @@ class Exchange:
         pass
 
     def set_parameters (self,current_datetime, 
-            historical_data_folder_name, underlying_name):
+            historical_data_folder_name, underlying_name,
+            fno_folder_name,equity_folder_name):
         
         self.underlying_name = underlying_name.upper()
         self.instruments_book = pd.DataFrame()
         self.tick_book = pd.DataFrame()
         self.prepare_data_book(current_datetime=current_datetime,
-            historical_data_folder_name=historical_data_folder_name)
+            historical_data_folder_name=historical_data_folder_name,
+            fno_folder_name=fno_folder_name,
+            equity_folder_name=equity_folder_name)
         
     
     @keep_log(default_return=False)
@@ -1024,6 +1082,12 @@ class Exchange:
             historical_data_folder_name,
             fno_folder_name='FNO',
             equity_folder_name="Equity") -> Boolean:
+
+        # required 
+        #      - current_datetime
+        #      - historical_data_folder_name
+        #      - fno_folder_name
+        #      - equity_folder_name
 
         current_datestring = current_datetime.strftime("%Y-%m-%d")
 
@@ -1077,20 +1141,26 @@ class Exchange:
         self.tick_book['duplicate_count'] = df_group['ltp'].transform('size')
         del df_group
         self.tick_book['duplicate_fraction'] = \
-            pd.to_timedelta(df['duplicate_serial'] \
-                / df['duplicate_count'], unit='s')
-        self.tick_book['timestamp'] = df['timestamp'] \
-                    + df['duplicate_fraction']
-        self.tick_book = self.tick_book[['ticker','ltp','buy_price',\
-                    'sell_price','underlying','strike','call_put',\
-                    'expiry_datetime','timestamp']]
+            pd.to_timedelta(self.tick_book['duplicate_serial'] \
+                / self.tick_book['duplicate_count'], unit='s')
+        self.tick_book['timestamp'] = self.tick_book['timestamp'] \
+                    + self.tick_book['duplicate_fraction']
+        
 
         self.instruments_book = self.tick_book[['ticker','underlying',\
                     'strike','call_put','expiry_datetime']]
+
+        self.tick_book = self.tick_book[['ticker','ltp','buy_price',\
+                    'sell_price','underlying','strike','call_put',\
+                    'timestamp']]
+
         self.instruments_book.drop_duplicates(inplace=True)
+
+        
 
         return True
 
+    @keep_log()
     def ltp(self,instruments,current_datetime, initiation_time) -> float:
 
         slippage = perf_counter() - initiation_time
@@ -1100,20 +1170,20 @@ class Exchange:
 
         if type(instruments) == list:
             ltp_df = pd.DataFrame(instruments)
-            ltp_df = ltp_df.merge(df,left_on=0, right_on='ticker')
+            ltp_df = ltp_df.merge(self.tick_book,left_on=0, right_on='ticker')
             ltp_df = ltp_df[ltp_df['timestamp']\
                 <=current_datetime_slippage_adj]\
                     .drop_duplicates(subset='ticker',keep='last')
             ltp_df = ltp_df[['ticker','ltp']]
             return ltp_df
         else:
-            k = df[(df['ticker']==instruments)\
-                &(df['timestamp']<=current_datetime_slippage_adj)]\
+            k = self.tick_book[(self.tick_book['ticker']==instruments)\
+                &(self.tick_book['timestamp']<=current_datetime_slippage_adj)]\
                 [['ltp']].iloc[-1][0]
             return k
 
-
-    def quote (self,instruments,current_datetime, initiation_time):
+    @keep_log(default_return = {'buy_price':0,'sell_price':0})
+    def quote (self,instrument_id,current_datetime, initiation_time):
         #Quote
 
         slippage = perf_counter() - initiation_time
@@ -1121,8 +1191,8 @@ class Exchange:
             current_datetime + timedelta(seconds=slippage)
         current_datetime_slippage_adj
 
-        quote = df[(df['ticker']==a)\
-            &(df['timestamp']<=current_datetime_slippage_adj)]\
+        quote = self.tick_book[(self.tick_book['ticker']==instrument_id)\
+            &(self.tick_book['timestamp']<=current_datetime_slippage_adj)]\
             [['buy_price','sell_price']].iloc[-1]
         return quote
 
