@@ -22,11 +22,12 @@ class Logger ():
         and passed elements like underlying and ltp
     """    
 
-    def __init__(self, is_logging, data_guy= None, 
+    def __init__(self, is_logging,
+            current_datetime,
+            data_guy= None, 
             broker_for_trade="0", 
             broker_for_data="0", 
-            log_folder="Logs", 
-            trading_date=None) -> None:
+            log_folder="Logs") -> None:
         """Initialize the logger
 
         Args:
@@ -51,7 +52,6 @@ class Logger ():
         """    
 
         # if trading date is not provided, default it to today's date    
-        if trading_date is None: trading_date = datetime.now().date()
         self.is_logging = is_logging
         self.logger = None
 
@@ -61,9 +61,9 @@ class Logger ():
             self.logger.setLevel(logging.INFO)
             formatter = logging.Formatter('%(levelname)s|%(className)s->%(functionName)s|%(message)s')
 
-            timestamp_string = datetime.now().strftime("%H_%M_%S")
+            timestamp_string = current_datetime.strftime("%Y-%m-%d @ %H_%M_%S")
             file_handler = logging.FileHandler(
-                f'{log_folder}/T-{broker_for_trade} D-{broker_for_data} {trading_date} @ {timestamp_string} team.log')
+                f'{log_folder}/T-{broker_for_trade} D-{broker_for_data} {timestamp_string} team.log')
             file_handler.setFormatter(formatter)
 
             self.logger.addHandler(file_handler)
@@ -251,7 +251,7 @@ class Data_guy:
 
         #Initiate data_df and store as csv
         self.data_df = pd.DataFrame()
-        timestamp_string = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+        timestamp_string = current_datetime.strftime("%Y-%m-%d %H_%M_%S")
         self.data_df_store_path = f'./Data_df/Data {timestamp_string} team.csv'
         self.data_df.to_csv(self.data_df_store_path, index=False)
         
@@ -1570,9 +1570,6 @@ class Trader:
         if based_on_value=='delta':
             fno_df = self.data_guy.calculate_greeks(fno_df, greek_type='delta', inplace=False)
 
-            # fno_df.to_csv(f'''interim_df/calculate_delta_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.csv''',
-            #                 index=False)
-
         fno_df['value'] = value
         fno_df['minimize'] = abs(fno_df[based_on_value] - fno_df['value'])
 
@@ -1603,25 +1600,28 @@ class Algo_manager:
     currently it updates data_guy and checks for events_and_actions.
     """    
     def __init__(self, broker_for_trade, underlying_name, \
-                 broker_for_data,
-                 per_trade_fee=0,
-                 log_folder="logs",
-                 begin_time=datetime(2020, 1, 1, 9, 28).time(), \
-                 close_time=datetime(2020, 1, 1, 15, 7).time(), \
-                 trailing_loss_trigger_per_lot=1_500,
-                 max_trailing_loss_non_expiry_per_lot=-250,
-                 max_trailing_loss_expiry_per_lot = -200,
-                 total_loss_limit_per_lot=-1_500,
-                 candle_length=5,
-                 quantity_per_lot = 50,
-                 lots_traded = 1,
-                 non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time(),
-                 expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time(),
-                 kite_api_key=None, kite_access_token=None,
-                 kotak_consumer_key=None, kotak_access_token=None,
-                 kotak_consumer_secret=None, kotak_user_id=None,
-                 kotak_access_code=None, kotak_user_password=None,
-                 current_datetime=None) -> None:
+                broker_for_data,
+                per_trade_fee=0,
+                log_folder="logs",
+                begin_time=datetime(2020, 1, 1, 9, 28).time(), \
+                close_time=datetime(2020, 1, 1, 15, 7).time(), \
+                trailing_loss_trigger_per_lot=1_500,
+                max_trailing_loss_non_expiry_per_lot=-250,
+                max_trailing_loss_expiry_per_lot = -200,
+                total_loss_limit_per_lot=-1_500,
+                candle_length=5,
+                quantity_per_lot = 50,
+                lots_traded = 1,
+                non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time(),
+                expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time(),
+                kite_api_key=None, kite_access_token=None,
+                kotak_consumer_key=None, kotak_access_token=None,
+                kotak_consumer_secret=None, kotak_user_id=None,
+                kotak_access_code=None, kotak_user_password=None,
+                current_datetime=None,
+                historical_data_folder_name = 'historical data',
+                fno_folder_name = 'FNO',
+                equity_folder_name = 'Equity') -> None:
 
         """Initialize Algo_manager by passing paramaters
             Args:
@@ -1699,7 +1699,7 @@ class Algo_manager:
                     broker_for_trade=broker_for_trade, \
                     broker_for_data=broker_for_data, \
                     log_folder=log_folder, \
-                    trading_date=current_datetime.date(),\
+                    current_datetime=current_datetime,\
                     data_guy = self.data_guy)
         logger1.log(info="Logger Initiated")
         
@@ -1717,7 +1717,11 @@ class Algo_manager:
             kotak_access_code=kotak_access_code,
             current_datetime=current_datetime,
             logger = logger1,
-            data_guy= self.data_guy)
+            data_guy= self.data_guy,
+            underlying_name=underlying_name,
+            historical_data_folder_name = historical_data_folder_name,
+            fno_folder_name = fno_folder_name,
+            equity_folder_name = equity_folder_name)
 
         #setting parameters for data_guy
         self.data_guy.set_parameters( \

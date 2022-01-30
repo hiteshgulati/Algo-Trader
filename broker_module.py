@@ -123,6 +123,8 @@ class Broker:
 
     @keep_log()
     def set_parameters(self, broker_for_trade, broker_for_data,
+                historical_data_folder_name, underlying_name,
+                fno_folder_name,equity_folder_name,
                 data_guy=None,
                 kite_api_key=None, kite_access_token=None,
                 kotak_consumer_key=None, kotak_access_token=None,
@@ -211,7 +213,11 @@ class Broker:
                             kotak_access_token=kotak_access_token,
                             kotak_user_id=kotak_user_id,
                             kotak_user_password=kotak_user_password,
-                            kotak_consumer_key=kotak_consumer_key)
+                            kotak_consumer_key=kotak_consumer_key,
+                            underlying_name=underlying_name,
+                            historical_data_folder_name = historical_data_folder_name,
+                            fno_folder_name = fno_folder_name,
+                            equity_folder_name = equity_folder_name)
 
         #Set market broker object for Data Broker 
         #   if not same as Trade Broker
@@ -225,9 +231,13 @@ class Broker:
                             kotak_access_token=kotak_access_token,
                             kotak_user_id=kotak_user_id,
                             kotak_user_password=kotak_user_password,
-                            kotak_consumer_key=kotak_consumer_key)
+                            kotak_consumer_key=kotak_consumer_key,
+                            underlying_name=underlying_name,
+                            historical_data_folder_name = historical_data_folder_name,
+                            fno_folder_name = fno_folder_name,
+                            equity_folder_name = equity_folder_name)
         
-        #df to maintain current positions
+        #df to maintain current positionss
         self.positions_book = pd.DataFrame()
 
         #df to maintain tradebook containing 
@@ -244,7 +254,11 @@ class Broker:
 
 
     @keep_log(default_return=False)
-    def set_broker_object(self,broker_name,current_datetime = None,
+    def set_broker_object(self,broker_name,underlying_name,
+                            historical_data_folder_name = None,
+                            fno_folder_name = None,
+                            equity_folder_name = None,
+                            current_datetime = None,
                             kite_api_key=None, kite_access_token=None,
                             kotak_consumer_key=None, kotak_access_token=None,
                             kotak_consumer_secret=None,kotak_user_id=None,
@@ -283,9 +297,8 @@ class Broker:
 
         Returns:
             bool: True is the object is set successfully 
-        """                            
+        """                           
         logger1.log(broker_name=broker_name)
-
         if broker_name == 'ZERODHA':
             self.kite = KiteConnect(api_key=kite_api_key)
             self.kite.set_access_token(kite_access_token)
@@ -336,8 +349,9 @@ class Broker:
 
         elif broker_name == "SIM":
             self.sim = Exchange()
+            
             self.sim.set_parameters(current_datetime=current_datetime,
-                underlying_name = self.underlying_name,
+                underlying_name = underlying_name,
                 historical_data_folder_name=historical_data_folder_name,
                 fno_folder_name=fno_folder_name,
                 equity_folder_name=equity_folder_name)
@@ -967,10 +981,12 @@ class Broker:
             return next_expiry_datetime
 
         elif self.broker_for_data == 'SIM':
+            logger1.log(underlying=underlying, tracker='xyzzyspoon1')
             next_expiry_datetime = self.sim.instruments_book[\
                                     (self.sim.instruments_book['underlying']==underlying.upper()) 
                                     & (self.sim.instruments_book['call_put'] == 'CE')]\
                                     ['expiry_datetime'].min()
+            logger1.log(underlying=underlying, tracker='xyzzyspoon2')
             return next_expiry_datetime
 
 
@@ -1014,7 +1030,7 @@ class Broker:
         if self.broker_for_data== 'SIM':
             #GET AVAILABLE STRIKES FROM BACKTEST
             available_strikes = self.sim.instruments_book[(\
-                self.sim.instruments_book['name']==underlying) 
+                self.sim.instruments_book['underlying']==underlying) 
                 & (self.sim.instruments_book['call_put']==call_put)
                 &(self.sim.instruments_book['expiry_datetime']==expiry_datetime)] \
                 ['strike'].unique()
@@ -1071,13 +1087,14 @@ class Exchange:
         self.underlying_name = underlying_name.upper()
         self.instruments_book = pd.DataFrame()
         self.tick_book = pd.DataFrame()
+        
         self.prepare_data_book(current_datetime=current_datetime,
             historical_data_folder_name=historical_data_folder_name,
             fno_folder_name=fno_folder_name,
             equity_folder_name=equity_folder_name)
         
     
-    @keep_log(default_return=False)
+    # @keep_log(default_return=False)
     def prepare_data_book(self,current_datetime,
             historical_data_folder_name,
             fno_folder_name='FNO',
@@ -1090,11 +1107,12 @@ class Exchange:
         #      - equity_folder_name
 
         current_datestring = current_datetime.strftime("%Y-%m-%d")
-
+        
         parent = os.path.dirname(os.getcwd())
+
         historical_data_folder_path = os.path.join(\
                 parent,historical_data_folder_name)
-
+        
         fno_data_folder_path = os.path.join(\
                 historical_data_folder_path,fno_folder_name)
         fno_file_paths = [\
@@ -1117,25 +1135,23 @@ class Exchange:
         data_file_paths.extend(equity_file_paths)
         self.tick_book = pd.concat(map(pd.read_csv,data_file_paths))
 
-        
         self.tick_book.rename(columns={'Ticker':'ticker',
                         'LTP':'ltp',
                         'BuyPrice':'buy_price',
                         'SellPrice':'sell_price'},
                         inplace=True)
+
         self.tick_book = self.tick_book[['ticker','ltp','buy_price',\
                     'sell_price','underlying','strike','call_put',\
-                    'expiry_datetime','timestamp']]
+                    'expiry_date','timestamp']]
         self.tick_book = self.tick_book[\
             (self.tick_book['underlying']==self.underlying_name) | \
             (self.tick_book['underlying'].isnull())]
-        
         self.tick_book['expiry_datetime'] = pd.to_datetime(\
                     self.tick_book['expiry_date']) + \
                         timedelta (hours=15, minutes =30)
         self.tick_book['timestamp'] = pd.to_datetime(\
                     self.tick_book['timestamp'])
-
         df_group = self.tick_book.groupby(['ticker','timestamp'])
         self.tick_book['duplicate_serial'] = df_group[['ltp']].cumcount()
         self.tick_book['duplicate_count'] = df_group['ltp'].transform('size')
@@ -1146,18 +1162,15 @@ class Exchange:
         self.tick_book['timestamp'] = self.tick_book['timestamp'] \
                     + self.tick_book['duplicate_fraction']
         
-
         self.instruments_book = self.tick_book[['ticker','underlying',\
                     'strike','call_put','expiry_datetime']]
 
         self.tick_book = self.tick_book[['ticker','ltp','buy_price',\
                     'sell_price','underlying','strike','call_put',\
                     'timestamp']]
-
         self.instruments_book.drop_duplicates(inplace=True)
-
-        
-
+        # self.tick_book.to_csv(current_datetime.strftime("interim_df/%Y-%m-%d Tick.csv"), index=False)
+        # self.instruments_book.to_csv(current_datetime.strftime("interim_df/%Y-%m-%d Instruments.csv"), index=False)
         return True
 
     @keep_log()

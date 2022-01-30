@@ -1,0 +1,13 @@
+INFO|->|| -|-|- info-Logger Initiated;
+INFO|->|| -|-|- broker_for_data-kite;broker_for_trade-paper;
+INFO|Broker->set_broker_object|| -|-|- status-Called;
+INFO|->|| -|-|- broker_name-PAPER;
+INFO|Broker->set_broker_object|| -|-|- result-True;status-End;execution_time-30.667;
+INFO|Broker->set_broker_object|| -|-|- status-Called;
+INFO|->|| -|-|- broker_name-KITE;
+INFO|Broker->set_broker_object|| -|-|- result-None;status-End;execution_time-25.125;
+INFO|Broker->set_parameters|| -|-|- result-None;status-End;execution_time-676.875;
+INFO|Data_guy->set_parameters|| -|-|- status-Called;
+INFO|Broker->get_next_expiry_datetime||2022-01-30 | 17:26:32.267622 |status-Called;
+INFO|->||2022-01-30 | 17:26:32.267622 |underlying-NIFTY;
+INFO|Broker->get_next_expiry_datetime||2022-01-30 | 17:26:32.267622 |result-None;status-End;execution_time-34.75;
