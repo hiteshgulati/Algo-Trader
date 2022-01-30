@@ -70,7 +70,7 @@ def execute_algo (**kwargs):
     else: 
         current_datetime = datetime.now()
     
-    while current_datetime.time() <= end_time:
+    while current_datetime.time() <= kwargs['switch_off_time']:
         initiation_time = perf_counter()
         algo_manager.action(current_datetime=current_datetime,
             initiation_time = initiation_time)
@@ -85,8 +85,9 @@ def execute_algo (**kwargs):
 
             current_datetime = current_datetime \
                 + timedelta(\
-                    seconds=(slippage+kwargs\
-                        ['pause_between_iterations'])
+                    seconds=(slippage+\
+                        kwargs['pause_between_iterations'])
+                )
         else: 
             sleep(kwargs['pause_between_iterations'])
             current_datetime = datetime.now()
@@ -95,7 +96,7 @@ def execute_algo (**kwargs):
     iterations_per_minute = round(count/(time_elapsed.seconds/60),0)
     print(f"Total Time: {time_elapsed}, Iterations: {count}, Per Minute: {iterations_per_minute}")
     
-    if kwargs['broker_for_data'].upper() == 'SIM']:
+    if kwargs['broker_for_data'].upper() == 'SIM':
         time_elapsed = current_datetime - kwargs['day_start_datetime']
         iterations_per_minute = round(count/(time_elapsed.seconds/60),0)
         print(f"Simulated Time: {time_elapsed}, Iterations: {count}, Per Simulated Minute: {iterations_per_minute}")
@@ -110,22 +111,22 @@ if __name__ == '__main__':
     # close_time = datetime(2020,1,1,15,7).time()
     # end_time = datetime(2020,1,1,15,10,0).time()
 
-    day_start_datetime = datetime(2020,1,1,3,2)
-    trading_start_time = datetime(2020,1,1,3,2).time()
-    trading_close_time = datetime(2020,1,1,3,8).time()
-    switch_off_time = datetime(2020,1,1,3,8,30).time()
+    day_start_datetime = datetime(2020,1,1,9,0)
+    trading_start_time = datetime(2020,1,1,9,28).time()
+    trading_close_time = datetime(2020,1,1,9,45).time()
+    switch_off_time =    datetime(2020,1,1,9,45,30).time()
 
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
 
     is_kite_access_token_available = True
-    kite_request_token='hn6w2DpFpOoKOLH44BtxGF6C2GmecI0K'
+    kite_request_token='6KLLxZN1nVX0ojO3DoHiWmcuTBawyOk1'
 
     broker_secret_file_name = 'broker_secret.json'
 
     log_folder_name = 'logs'
 
-    candle_length = 5
+    candle_length = 2 
     per_trade_fee = -.01
     lots_traded = 10
     underlying_name = 'NIFTY'
@@ -134,8 +135,6 @@ if __name__ == '__main__':
     broker_for_data = 'zerodha'
 
     pause_between_iterations = .7
-
- 
 
     execute_algo (day_start_datetime=day_start_datetime,
         trading_start_time=trading_start_time,

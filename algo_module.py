@@ -1382,9 +1382,11 @@ class Trader:
 
 
     @keep_log(default_return=False)
-    def place_order_in_orderbook(self, wait_time_secs=3, 
+    def place_order_in_orderbook(self, 
+            current_datetime, initiation_time,
+            wait_time_secs=3, 
             instrument_id_available=False,
-            current_datetime, initiation_time) -> boolean:
+            ) -> boolean:
         """Iters through the orderbook and places all orders
             Two ways orderbook can be used
             1) instrument_ID is available:
@@ -1492,8 +1494,9 @@ class Trader:
 
     @keep_log(default_return=(None,None))
     def strike_discovery(self, underlying, call_put, expiry_datetime, \
-                         based_on_value, value, range_from_atm=2000,
-                         current_datetime, initiation_time) -> (int,float):
+                         based_on_value, value, 
+                         current_datetime, initiation_time,
+                         range_from_atm=2000) -> (int,float):
         """
         Scans through multiple options and returns best suits Strike which has:
             Price or Delta closest to Value
