@@ -126,16 +126,16 @@ if __name__ == '__main__':
     # switch_off_time = datetime(2020,1,1,15,10,0).time()
 
     #For Simulation
-    day_start_datetime = datetime(2021,5,17,9,15)
-    trading_start_time = datetime(2020,1,1,9,17,5).time()
-    trading_close_time = datetime(2020,1,1,9,17,30).time()
-    switch_off_time =    datetime(2020,1,1,9,17,40).time()
+    # day_start_datetime = datetime(2021,5,17,9,15)
+    # trading_start_time = datetime(2020,1,1,9,17,5).time()
+    # trading_close_time = datetime(2020,1,1,9,17,30).time()
+    # switch_off_time =    datetime(2020,1,1,9,17,40).time()
 
-    #For Live trade testing
-    # day_start_datetime = None
-    # trading_start_time = datetime(2020,1,1,17,44).time()
-    # trading_close_time = datetime(2020,1,1,17,46).time()
-    # switch_off_time =    datetime(2020,1,1,17,46,30).time()
+    # For Live trade testing
+    day_start_datetime = None
+    trading_start_time = datetime(2020,1,1,0,56).time()
+    trading_close_time = datetime(2020,1,1,0,59).time()
+    switch_off_time =    datetime(2020,1,1,0,59,10).time()
 
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
@@ -153,9 +153,9 @@ if __name__ == '__main__':
     underlying_name = 'NIFTY'
 
     broker_for_trade = 'paper'
-    broker_for_data = 'sim'
+    broker_for_data = 'zerodha'
 
-    # pause_between_iterations = .7
+    pause_between_iterations = .7
 
     historical_data_folder_name = 'historical data'
     fno_folder_name = 'FNO'
