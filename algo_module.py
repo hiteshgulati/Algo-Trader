@@ -328,31 +328,32 @@ class Data_guy:
         self.candle_t_1 = self.candle(t_minus=1,candle_type='fixed')
 
         #Update data dataframe
-        self.data_df = self.data_df.append({'underlying_name': self.underlying_name, \
-                                            'current_datetime': self.current_datetime, \
-                                            'current_pnl': self.current_pnl,\
-                                            'strategy_pnl':self.strategy_pnl,\
-                                            'brokerage_pnl':self.brokerage_pnl,\
-                                            'max_pnl': self.max_pnl, \
-                                            'trailing_pnl': self.trailing_pnl,
-                                            'current_ltp': self.current_ltp, \
-                                            'expiry_datetime': self.expiry_datetime, \
-                                            'current_position': self.events_and_actions.current_position, \
-                                            'straddle_strike': self.events_and_actions.straddle_strike, \
-                                            'strangle_strike_low': self.events_and_actions.strangle_strike_low, \
-                                            'strangle_strike_low': self.events_and_actions.strangle_strike_high, \
-                                            'position_entry_ltp': self.events_and_actions.position_entry_ltp, \
-                                            'is_hedged': self.events_and_actions.is_hedged, \
-                                            'is_closed': self.events_and_actions.is_closed,\
-                                            'candle_t_2_start':self.candle_t_2['start_datetime'],\
-                                            'candle_t_2_end':self.candle_t_2['end_datetime'],\
-                                            'candle_t_2_open':self.candle_t_2['open'],\
-                                            'candle_t_2_close':self.candle_t_2['close'],\
-                                            'candle_t_1_start':self.candle_t_1['start_datetime'],\
-                                            'candle_t_1_end':self.candle_t_1['end_datetime'],\
-                                            'candle_t_1_open':self.candle_t_1['open'],
-                                            'candle_t_1_close':self.candle_t_1['close']}, \
-                                            ignore_index=True)
+        self.data_df = self.data_df.append({
+            'underlying_name': self.underlying_name, \
+            'current_datetime': self.current_datetime, \
+            'current_pnl': self.current_pnl,\
+            'strategy_pnl':self.strategy_pnl,\
+            'brokerage_pnl':self.brokerage_pnl,\
+            'max_pnl': self.max_pnl, \
+            'trailing_pnl': self.trailing_pnl,
+            'current_ltp': self.current_ltp, \
+            'expiry_datetime': self.expiry_datetime, \
+            'current_position': self.events_and_actions.current_position, \
+            'straddle_strike': self.events_and_actions.straddle_strike, \
+            'strangle_strike_low': self.events_and_actions.strangle_strike_low, \
+            'strangle_strike_low': self.events_and_actions.strangle_strike_high, \
+            'position_entry_ltp': self.events_and_actions.position_entry_ltp, \
+            'is_hedged': self.events_and_actions.is_hedged, \
+            'is_closed': self.events_and_actions.is_closed,\
+            'candle_t_2_start':self.candle_t_2['start_datetime'],\
+            'candle_t_2_end':self.candle_t_2['end_datetime'],\
+            'candle_t_2_open':self.candle_t_2['open'],\
+            'candle_t_2_close':self.candle_t_2['close'],\
+            'candle_t_1_start':self.candle_t_1['start_datetime'],\
+            'candle_t_1_end':self.candle_t_1['end_datetime'],\
+            'candle_t_1_open':self.candle_t_1['open'],
+            'candle_t_1_close':self.candle_t_1['close']}, \
+            ignore_index=True)
         #save data_df
         self.data_df.to_csv(self.data_df_store_path, index=False)
 
@@ -691,9 +692,12 @@ class Events_and_actions:
 
         Returns:
             str: string to represent LTP and current position
-        """        
-        display_string = f"{self.data_guy.current_ltp}\
-            {self.data_guy.current_pnl}\
+        """
+        current_ltp_display = "{:.2f}".format(self.data_guy.current_ltp)
+        current_pnl_string = "{:.2f}".format(self.data_guy.current_pnl)
+
+        display_string = f"{current_ltp_display}\
+            {current_pnl_string}\
             "
 
         if self.current_position is None:
@@ -1561,6 +1565,8 @@ class Trader:
             fno_df=fno_df, broker_for='data')
 
         #Get LTP of all options
+        logger1.log(type=type(fno_df),
+            count=len(fno_df))
         fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(
                 instrument_df=fno_df, exchange='NFO',
                 current_datetime=current_datetime,

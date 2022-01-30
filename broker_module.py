@@ -237,7 +237,7 @@ class Broker:
                             fno_folder_name = fno_folder_name,
                             equity_folder_name = equity_folder_name)
         
-        #df to maintain current positionss
+        #df to maintain current positions
         self.positions_book = pd.DataFrame()
 
         #df to maintain tradebook containing 
@@ -511,7 +511,7 @@ class Broker:
             return instrument_id
 
         elif instrument_id_broker == 'SIM':
-            instrument_id = fno_df.merge(self.self.sim.instruments_book,how='left',\
+            instrument_id = fno_df.merge(self.sim.instruments_book,how='left',\
                     left_on=['underlying','call_put','expiry_datetime','strike'], 
                     right_on=['underlying','call_put','expiry_datetime','strike'])\
                     ['ticker'].astype(str)
@@ -798,10 +798,10 @@ class Broker:
 
         elif self.broker_for_data == 'SIM':
             df = instrument_df.copy()
-            ltp = self.sim.ltp(instruments=df,
+            ltp = self.sim.ltp(instruments=df[['instrument_id_data']],
                 current_datetime=current_datetime,
                 initiation_time=initiation_time)['ltp']
-            return None
+            return ltp
 
 
     @keep_log()
@@ -981,12 +981,10 @@ class Broker:
             return next_expiry_datetime
 
         elif self.broker_for_data == 'SIM':
-            logger1.log(underlying=underlying, tracker='xyzzyspoon1')
             next_expiry_datetime = self.sim.instruments_book[\
                                     (self.sim.instruments_book['underlying']==underlying.upper()) 
                                     & (self.sim.instruments_book['call_put'] == 'CE')]\
                                     ['expiry_datetime'].min()
-            logger1.log(underlying=underlying, tracker='xyzzyspoon2')
             return next_expiry_datetime
 
 
@@ -1094,7 +1092,7 @@ class Exchange:
             equity_folder_name=equity_folder_name)
         
     
-    # @keep_log(default_return=False)
+    @keep_log(default_return=False)
     def prepare_data_book(self,current_datetime,
             historical_data_folder_name,
             fno_folder_name='FNO',
@@ -1175,24 +1173,31 @@ class Exchange:
 
     @keep_log()
     def ltp(self,instruments,current_datetime, initiation_time) -> float:
-
+        
         slippage = perf_counter() - initiation_time
         current_datetime_slippage_adj = \
             current_datetime + timedelta(seconds=slippage)
         current_datetime_slippage_adj
+        if type(instruments) == pd.DataFrame:
+            ltp_df = instruments.copy()
 
-        if type(instruments) == list:
-            ltp_df = pd.DataFrame(instruments)
-            ltp_df = ltp_df.merge(self.tick_book,left_on=0, right_on='ticker')
-            ltp_df = ltp_df[ltp_df['timestamp']\
+            df_before_current_time = ltp_df.merge(self.tick_book,how='left',left_on='instrument_id_data', right_on='ticker')
+
+            df_before_current_time = df_before_current_time[df_before_current_time['timestamp']\
                 <=current_datetime_slippage_adj]\
                     .drop_duplicates(subset='ticker',keep='last')
+
+            ltp_df = ltp_df.merge(df_before_current_time,how='left',left_on='instrument_id_data', right_on='ticker')
+
             ltp_df = ltp_df[['ticker','ltp']]
+
             return ltp_df
         else:
+ 
             k = self.tick_book[(self.tick_book['ticker']==instruments)\
-                &(self.tick_book['timestamp']<=current_datetime_slippage_adj)]\
-                [['ltp']].iloc[-1][0]
+                &(self.tick_book['timestamp']<=current_datetime_slippage_adj)]
+            k = k[['ltp']].iloc[-1][0]
+
             return k
 
     @keep_log(default_return = {'buy_price':0,'sell_price':0})
