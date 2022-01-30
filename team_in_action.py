@@ -19,43 +19,28 @@ def generate_access_token(broker_secret, request_token) -> str:
 
         return data['access_token']
 
-if __name__ == '__main__':
-    
-    # start_time = datetime(2020,1,1,9,28).time()
-    # close_time = datetime(2020,1,1,15,7).time()
-    # end_time = datetime(2020,1,1,15,10,0).time()
 
-    start_time = datetime(2020,1,1,3,2).time()
-    close_time = datetime(2020,1,1,3,8).time()
-    end_time = datetime(2020,1,1,3,8,30).time()
-
-    non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
-    expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
-
-
-    is_kite_access_token_available = True
-
-    kite_request_token='hn6w2DpFpOoKOLH44BtxGF6C2GmecI0K'
+def execute_algo (**kwargs):
 
     parent = os.path.dirname(os.getcwd())
-    file_path = os.path.join(parent,'broker_secret.json')
+    file_path = os.path.join(parent,kwargs['broker_secret_file_name'])
 
     with open (file_path, "r") as openfile:
         broker_secret = json.load(openfile)
 
-    if not is_kite_access_token_available:
+    if not kwargs['is_kite_access_token_available']:
         broker_secret['kite_access_token'] = \
-            generate_access_token(broker_secret,kite_request_token)
+            generate_access_token(broker_secret,kwargs['kite_request_token'])
 
         with open (file_path, "w") as outfile:
             json.dump(broker_secret,outfile)
 
-    logs_folder_path = os.path.join(parent,'logs')
+    logs_folder_path = os.path.join(parent,log_folder_name)
 
-    algo_manager = Algo_manager(broker_for_trade='paper',
-                    broker_for_data='zerodha',
-                    per_trade_fee = -.01,
-                    underlying_name='NIFTY',
+    algo_manager = Algo_manager(broker_for_trade=kwargs['broker_for_trade'],
+                    broker_for_data=kwargs['broker_for_data'],
+                    per_trade_fee = kwargs['per_trade_fee'],
+                    underlying_name=kwargs['underlying_name'],
                     kotak_consumer_key=broker_secret['kotak_consumer_key'],
                     kotak_access_token=broker_secret['kotak_access_token'],
                     kotak_consumer_secret=broker_secret['kotak_consumer_secret'],
@@ -65,31 +50,107 @@ if __name__ == '__main__':
                     kite_api_key=broker_secret['kite_api_key'],
                     kite_access_token=broker_secret['kite_access_token'],
                     log_folder=logs_folder_path,
-                    begin_time=start_time,
-                    close_time=close_time,
+                    begin_time=kwargs['trading_start_time'],
+                    close_time=kwargs['trading_close_time'],
                     quantity_per_lot = 50,
                     lots_traded = 10,
                     total_loss_limit_per_lot = -1_500,
                     max_trailing_loss_non_expiry_per_lot = -250,
                     max_trailing_loss_expiry_per_lot = -200,
                     trailing_loss_trigger_per_lot = 1_500,
-                    non_expiry_day_no_candle_time = non_expiry_day_no_candle_time,
-                    expiry_day_no_candle_time = expiry_day_no_candle_time,
-                    candle_length=2)
+                    non_expiry_day_no_candle_time = kwargs['non_expiry_day_no_candle_time'],
+                    expiry_day_no_candle_time = kwargs['expiry_day_no_candle_time'],
+                    candle_length=kwargs['candle_length'])
     
     count = 0
-    t0 = perf_counter()
-    while datetime.now().time() <= end_time:
-        algo_manager.action()
-        timestamp_sec = datetime.now().time().strftime("%H:%M:%S")
-        time_elapsed = round((perf_counter()-t0)/60,2)
-        try:
-            iterations_per_minute = round(count/(time_elapsed),0)
-        except ZeroDivisionError:
-            iterations_per_minute = 0
-        # print(f"{iterations_per_minute}-{time_elapsed}-{timestamp_sec}",end='\r')
-        print(algo_manager.events_and_actions.display_string(),end='\r')
+    execution_start_time = datetime.now()
+
+    if kwargs['broker_for_data'].upper() == 'SIM':
+        current_datetime = kwargs['day_start_datetime']
+    else: 
+        current_datetime = datetime.now()
+    
+    while current_datetime.time() <= end_time:
+        initiation_time = perf_counter()
+        algo_manager.action(current_datetime=current_datetime,
+            initiation_time = initiation_time)
+
+        print(current_datetime.strftime('%Y-%b-%d>%I:%M:%S %p, %a                '),
+            algo_manager.events_and_actions.display_string(),end='\r')
+        
         count += 1
-        sleep(.7)
+        
+        if kwargs['broker_for_data'].upper() == 'SIM':
+            slippage = perf_counter() - initiation_time
+
+            current_datetime = current_datetime \
+                + timedelta(\
+                    seconds=(slippage+kwargs\
+                        ['pause_between_iterations'])
+        else: 
+            sleep(kwargs['pause_between_iterations'])
+            current_datetime = datetime.now()
+    
+    time_elapsed = current_datetime - execution_start_time
+    iterations_per_minute = round(count/(time_elapsed.seconds/60),0)
     print(f"Total Time: {time_elapsed}, Iterations: {count}, Per Minute: {iterations_per_minute}")
+    
+    if kwargs['broker_for_data'].upper() == 'SIM']:
+        time_elapsed = current_datetime - kwargs['day_start_datetime']
+        iterations_per_minute = round(count/(time_elapsed.seconds/60),0)
+        print(f"Simulated Time: {time_elapsed}, Iterations: {count}, Per Simulated Minute: {iterations_per_minute}")
+
     print(f"Days: Profit : {algo_manager.data_guy.strategy_pnl} + {algo_manager.data_guy.brokerage_pnl}")
+    pass
+
+
+if __name__ == '__main__':
+    
+    # start_time = datetime(2020,1,1,9,28).time()
+    # close_time = datetime(2020,1,1,15,7).time()
+    # end_time = datetime(2020,1,1,15,10,0).time()
+
+    day_start_datetime = datetime(2020,1,1,3,2)
+    trading_start_time = datetime(2020,1,1,3,2).time()
+    trading_close_time = datetime(2020,1,1,3,8).time()
+    switch_off_time = datetime(2020,1,1,3,8,30).time()
+
+    non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
+    expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
+
+    is_kite_access_token_available = True
+    kite_request_token='hn6w2DpFpOoKOLH44BtxGF6C2GmecI0K'
+
+    broker_secret_file_name = 'broker_secret.json'
+
+    log_folder_name = 'logs'
+
+    candle_length = 5
+    per_trade_fee = -.01
+    lots_traded = 10
+    underlying_name = 'NIFTY'
+
+    broker_for_trade = 'paper'
+    broker_for_data = 'zerodha'
+
+    pause_between_iterations = .7
+
+ 
+
+    execute_algo (day_start_datetime=day_start_datetime,
+        trading_start_time=trading_start_time,
+        trading_close_time = trading_close_time,
+        switch_off_time = switch_off_time,
+        non_expiry_day_no_candle_time = non_expiry_day_no_candle_time,
+        expiry_day_no_candle_time = expiry_day_no_candle_time,
+        is_kite_access_token_available = is_kite_access_token_available,
+        kite_request_token = kite_request_token,
+        broker_secret_file_name = broker_secret_file_name,
+        log_folder_name = log_folder_name,
+        candle_length = candle_length,
+        per_trade_fee = per_trade_fee,
+        lots_traded = lots_traded,
+        broker_for_trade = broker_for_trade,
+        broker_for_data = broker_for_data,
+        underlying_name = underlying_name,
+        pause_between_iterations = pause_between_iterations)

@@ -1749,7 +1749,8 @@ class Algo_manager:
 
 
     @keep_log()
-    def action(self, current_datetime=None) -> None:
+    def action(self, current_datetime,
+        initiation_time) -> None:
         """
         Combine all steps required in each iteration.
         Currently:
@@ -1758,9 +1759,6 @@ class Algo_manager:
         Args:
             current_datetime (datetime.datetime, optional): Enter current datetime. Defaults to None.
         """        
-        initiation_time = perf_counter()
-        #if current datetime is not provided, default it to now()
-        if current_datetime is None: current_datetime = datetime.now()
 
         #Step 1: Update data for current_datetime
         self.data_guy.update_data(current_datetime=current_datetime,
