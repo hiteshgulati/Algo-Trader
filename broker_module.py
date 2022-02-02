@@ -626,11 +626,9 @@ class Broker:
                     initiation_time=initiation_time)
                 buy_sell_counter_trade = buy_sell_counter_trade + "_price"
                 price = quote[buy_sell_counter_trade]
-                
-                price = 0
             else:
                 price = -1
-
+            logger1.log(price=price,key=buy_sell_counter_trade,quote=quote)
             broker_order_id = str(datetime.now())
             position = {'broker_order_id':broker_order_id,\
                         'instrument_id':instrument_id,\
@@ -639,7 +637,7 @@ class Broker:
                         'average_price':price,\
                         'current_datetime':self.data_guy.current_datetime,\
                         'current_ltp':self.data_guy.current_ltp}
-            
+            logger1.log(price=price,position=position)
             self.positions_book = self.positions_book.append\
                                 (position,ignore_index=True)
 

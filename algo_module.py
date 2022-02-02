@@ -344,7 +344,8 @@ class Data_guy:
             'strangle_strike_low': self.events_and_actions.strangle_strike_high, \
             'position_entry_ltp': self.events_and_actions.position_entry_ltp, \
             'is_hedged': self.events_and_actions.is_hedged, \
-            'is_closed': self.events_and_actions.is_closed,\
+            'is_closed': self.events_and_actions.is_closed,
+            'is_expiry_day':self.is_expiry_day,\
             'candle_t_2_start':self.candle_t_2['start_datetime'],\
             'candle_t_2_end':self.candle_t_2['end_datetime'],\
             'candle_t_2_open':self.candle_t_2['open'],\
@@ -549,7 +550,7 @@ class Events_and_actions:
     The whole strategy is designed across multiple events
     and all events are mapped to an action.
     Events are designed to have multiple conditions,
-    if all the conditions arelated to event are satisfied 
+    if all the conditions related to event are satisfied 
     corresponding action is triggered.
     For eg if event_total_loss_reached is satisfied then 
     action_close_the_day will be triggered. 
@@ -957,9 +958,8 @@ class Events_and_actions:
                 output = True
         return output
 
-
+    @keep_log()
     def event_shop_close_time(self) -> boolean:
-
         output = False
         if not self.is_closed:
             if self.data_guy.current_datetime.time() >= self.close_time:
@@ -983,11 +983,10 @@ class Events_and_actions:
     def event_expiry_day_trailing_loss_reached(self) -> boolean:
 
             output = False
-            if not self.is_closed & self.data_guy.is_expiry_day:
-                if (self.data_guy.current_datetime.time() >= datetime(2020, 1, 1, 14, 50).time()):
-                    if (self.data_guy.max_pnl >= 1_000) & \
-                        (self.data_guy.trailing_pnl <= self.max_trailing_loss_expiry):
-                        output = True
+            if not self.is_closed and self.data_guy.is_expiry_day:
+                if (self.data_guy.max_pnl >= self.trailing_loss_trigger) & \
+                    (self.data_guy.trailing_pnl <= self.max_trailing_loss_expiry):
+                    output = True
             return output
 
 
@@ -1565,8 +1564,6 @@ class Trader:
             fno_df=fno_df, broker_for='data')
 
         #Get LTP of all options
-        logger1.log(type=type(fno_df),
-            count=len(fno_df))
         fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(
                 instrument_df=fno_df, exchange='NFO',
                 current_datetime=current_datetime,

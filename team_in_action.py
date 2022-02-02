@@ -61,7 +61,7 @@ def execute_algo (**kwargs):
         begin_time=kwargs['trading_start_time'],
         close_time=kwargs['trading_close_time'],
         quantity_per_lot = 50,
-        lots_traded = 10,
+        lots_traded = kwargs['lots_traded'],
         total_loss_limit_per_lot = -1_500,
         max_trailing_loss_non_expiry_per_lot = -250,
         max_trailing_loss_expiry_per_lot = -200,
@@ -126,17 +126,18 @@ if __name__ == '__main__':
     # switch_off_time = datetime(2020,1,1,15,10,0).time()
 
     #For Simulation
-    # day_start_datetime = datetime(2021,5,17,9,15)
-    # trading_start_time = datetime(2020,1,1,9,17,5).time()
-    # trading_close_time = datetime(2020,1,1,9,17,30).time()
-    # switch_off_time =    datetime(2020,1,1,9,17,40).time()
+    day_start_datetime = datetime(2021,5,17,9,15)
+    trading_start_time = datetime(2021,5,17,9,28).time()
+    trading_close_time = datetime(2021,5,17,15,7).time()
+    switch_off_time =    datetime(2021,5,17,15,15).time()
 
     # For Live trade testing
-    day_start_datetime = None
-    trading_start_time = datetime(2020,1,1,0,56).time()
-    trading_close_time = datetime(2020,1,1,0,59).time()
-    switch_off_time =    datetime(2020,1,1,0,59,10).time()
+    # day_start_datetime = None
+    # trading_start_time = datetime(2020,1,1,0,56).time()
+    # trading_close_time = datetime(2020,1,1,0,59).time()
+    # switch_off_time =    datetime(2020,1,1,0,59,10).time()
 
+    # non_expiry_day_no_candle_time = datetime(2020, 1, 1, 9, 15).time()
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
 
@@ -147,13 +148,13 @@ if __name__ == '__main__':
 
     log_folder_name = 'logs'
 
-    candle_length = 1 
+    candle_length = 5
     per_trade_fee = -.01
     lots_traded = 10
     underlying_name = 'NIFTY'
 
     broker_for_trade = 'paper'
-    broker_for_data = 'zerodha'
+    broker_for_data = 'sim'
 
     pause_between_iterations = .7
 
