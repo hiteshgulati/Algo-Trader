@@ -186,7 +186,7 @@ def keep_log (**kwargs_decorator):
             except Exception as e:
                 logger1.log(status="Exception",e=e,
                 extra=class_function_name_dict,
-                execution_time = (end_time-start_time)/1000,
+                execution_time = (perf_counter_ns()-start_time)/1000,
                 **kwargs_decorator)
                 #return default value in case of error
                 return default_return
@@ -358,11 +358,8 @@ class Data_guy:
         #save data_df
         self.data_df.to_csv(self.data_df_store_path, index=False)
 
-        update_successful = True
-        if update_successful:
-            logger1.log(current_ltp=self.current_ltp)
 
-        return update_successful
+        return True
 
     @keep_log()
     def get_atm_strike(self) -> int:
@@ -1577,7 +1574,7 @@ class Trader:
 
         #Get LTP of all options
         fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(
-                instrument_df=fno_df, exchange='NFO',
+                instruments_df=fno_df, exchange='NFO',
                 current_datetime=current_datetime,
                 initiation_time=initiation_time)
 

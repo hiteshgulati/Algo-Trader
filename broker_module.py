@@ -184,8 +184,6 @@ class Broker:
         global logger1
         #Assign logger if not done while initializing object
         if logger1 is None: logger1 = logger
-        logger1.log(broker_for_data=broker_for_data,
-            broker_for_trade=broker_for_trade)
         
         #Data guy object used to fetch current datetime 
         #   of the simulation
@@ -298,7 +296,6 @@ class Broker:
         Returns:
             bool: True is the object is set successfully 
         """                           
-        logger1.log(broker_name=broker_name)
         if broker_name == 'ZERODHA':
             self.kite = KiteConnect(api_key=kite_api_key)
             self.kite.set_access_token(kite_access_token)
@@ -403,9 +400,6 @@ class Broker:
         if (broker_for.upper() == 'DATA') | (self.broker_for_trade == 'PAPER'):
             instrument_id_broker = self.broker_for_data
 
-        logger1.log(instrument_id_broker=instrument_id_broker,
-                    broker_for=broker_for)
-
         if instrument_id_broker == 'ZERODHA':  
             
             instrument_id = str(self.kite_instruments_book[(self.kite_instruments_book['name']==underlying)
@@ -490,9 +484,6 @@ class Broker:
                     right_on=['name','instrument_type','expiry_datetime','strike'])\
                     ['tradingsymbol'].astype(str)
             
-            logger1.log(instrument_id_broker=instrument_id_broker,
-                fno_df = fno_df.to_json(),
-                instrument_id=instrument_id.to_json())
 
             return instrument_id
 
@@ -503,11 +494,7 @@ class Broker:
                     left_on=['underlying','call_put','expiry_datetime','strike'], 
                     right_on=['instrumentName','optionType','expiry_datetime','strike'])\
                     ['instrumentToken'].astype(str)
-            
-            logger1.log(instrument_id_broker=instrument_id_broker,
-                fno_df = fno_df.to_json(),
-                instrument_id=instrument_id.to_json())
-            
+
             return instrument_id
 
         elif instrument_id_broker == 'SIM':
@@ -515,10 +502,7 @@ class Broker:
                     left_on=['underlying','call_put','expiry_datetime','strike'], 
                     right_on=['underlying','call_put','expiry_datetime','strike'])\
                     ['ticker'].astype(str)
-            
-            logger1.log(instrument_id_broker=instrument_id_broker,
-                fno_df = fno_df.to_json(),
-                instrument_id=instrument_id.to_json())
+
 
             return instrument_id
 
@@ -551,11 +535,6 @@ class Broker:
         Returns:
             str: broker_order_id
         """                      
-
-        logger1.log(instrument_id=instrument_id,
-            buy_sell=buy_sell,
-            quantity=quantity,
-            exchange=exchange)
 
         if self.broker_for_trade == "ZERODHA":   
             # Place an intraday market order on NSE
@@ -628,7 +607,7 @@ class Broker:
                 price = quote[buy_sell_counter_trade]
             else:
                 price = -1
-            logger1.log(price=price,key=buy_sell_counter_trade,quote=quote)
+           
             broker_order_id = str(datetime.now())
             position = {'broker_order_id':broker_order_id,\
                         'instrument_id':instrument_id,\
@@ -668,8 +647,6 @@ class Broker:
         Returns:
             Boolean: True is order cancellation is sent
         """        
-
-        logger1.log(broker_order_id=broker_order_id)
 
         if self.broker_for_trade == "ZERODHA":   
             # Place an intraday market order on NSE
@@ -716,8 +693,6 @@ class Broker:
             float: LTP of instrument
         """        
 
-        logger1.log(instrument_id=instrument_id)
-
         if self.broker_for_data == "ZERODHA":
             if instrument_id == 'NIFTY': instrument_id = "NIFTY 50"
             ltp =  self.kite.ltp(f'{exchange}:{instrument_id}') \
@@ -745,7 +720,7 @@ class Broker:
 
 
     @keep_log()
-    def get_multiple_ltp (self, instrument_df, 
+    def get_multiple_ltp (self, instruments_df, 
         current_datetime, initiation_time,
         exchange="NFO") -> pd.Series:
         """(D)
@@ -753,7 +728,7 @@ class Broker:
         Note not applicable for Paper Broker
 
         Args:
-            instrument_df (pd.DataFrame): df of multiple instruments 
+            instruments_df (pd.DataFrame): df of multiple instruments 
                 for which LTP is to be fetched. df should contain
                     - instrument_id column
             exchange (str, optional): NSE/NFO. Defaults to "NFO".
@@ -789,7 +764,7 @@ class Broker:
             return ltp
 
         elif self.broker_for_data == 'SIM':
-            df = instrument_df.copy()
+            df = instruments_df.copy()
             ltp = self.sim.ltp(instruments=df[['instrument_id_data']],
                 current_datetime=current_datetime,
                 initiation_time=initiation_time)['ltp']
@@ -890,7 +865,7 @@ class Broker:
                                     self.positions_book['instrument_id']
             # Get LTP of all instruments
             self.positions_book['ltp'] = self.get_multiple_ltp\
-                                        (instrument_df = self.positions_book,\
+                                        (instruments_df = self.positions_book,\
                                         current_datetime = current_datetime, 
                                         initiation_time = initiation_time,
                                         exchange='NFO')
@@ -955,7 +930,6 @@ class Broker:
             datetime: expiry datetime of next expiring FnO
         """        
 
-        logger1.log(underlying=underlying)
         if self.broker_for_data == 'ZERODHA':
             next_expiry_datetime = self.kite_instruments_book[\
                                     (self.kite_instruments_book['name']==underlying.upper()) 
@@ -995,10 +969,7 @@ class Broker:
         Returns:
             list: list of all strikes of currently traded options
         """        
-        
-        logger1.log(underlying=underlying,
-            call_put=call_put,
-            expiry_datetime=expiry_datetime)
+
 
         if self.broker_for_data == 'ZERODHA':
             available_strikes = self.kite_instruments_book[(self.kite_instruments_book['name']==underlying) 
@@ -1041,7 +1012,6 @@ class Broker:
             Boolean: True if the order is executed
         """        
         
-        logger1.log(broker_order_id=broker_order_id)
 
         if self.broker_for_trade == "ZERODHA":
             order_history = self.kite.order_history(broker_order_id)
