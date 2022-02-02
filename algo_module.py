@@ -131,7 +131,7 @@ class Logger ():
                 if isinstance(value,pd.DataFrame) \
                     or isinstance (value,pd.Series):
                     value_modified = value.to_json()
-                key_value_string = f"{key}-{value_modified};"
+                key_value_string = f"{key}={value_modified};"
                 logger_string = \
                     logger_string + key_value_string
 
@@ -168,8 +168,12 @@ def keep_log (**kwargs_decorator):
                     'className': args[0].__class__.__name__,
                     'functionName': original_function.__name__}
             try:
-                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs_decorator)
-            except: 
+                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs)
+            except Exception as e:
+                try:
+                    logger1.log(Exception=e)
+                except:
+                    pass
                 #pass if logger is not set
                 pass
             
@@ -180,13 +184,13 @@ def keep_log (**kwargs_decorator):
                 end_time = perf_counter_ns()
                 logger1.log(result=result,
                     extra=class_function_name_dict,
-                    status="End",execution_time = (end_time-start_time)/1000,
+                    status="End",execution_time = (end_time-start_time)/1_000_000,
                     **kwargs_decorator)
                 return result
             except Exception as e:
                 logger1.log(status="Exception",e=e,
                 extra=class_function_name_dict,
-                execution_time = (perf_counter_ns()-start_time)/1000,
+                execution_time = (perf_counter_ns()-start_time)/1_000_000,
                 **kwargs_decorator)
                 #return default value in case of error
                 return default_return
@@ -1580,7 +1584,7 @@ class Trader:
 
         #Calculate delta for options
         if based_on_value=='delta':
-            fno_df = self.data_guy.calculate_greeks(fno_df, greek_type='delta', inplace=False)
+            fno_df = self.data_guy.calculate_greeks(df=fno_df, greek_type='delta', inplace=False)
 
         fno_df['value'] = value
         fno_df['minimize'] = abs(fno_df[based_on_value] - fno_df['value'])

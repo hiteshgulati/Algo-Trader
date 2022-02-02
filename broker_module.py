@@ -37,7 +37,7 @@ def keep_log (**kwargs_decorator):
                     'className': args[0].__class__.__name__,
                     'functionName': original_function.__name__}
             try:
-                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs_decorator)
+                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs)
             except:
                 pass
             start_time = perf_counter_ns()
@@ -46,7 +46,7 @@ def keep_log (**kwargs_decorator):
                 end_time = perf_counter_ns()
                 logger1.log(result=result,
                     extra=class_function_name_dict,
-                    status="End",execution_time = (end_time-start_time)/1000,
+                    status="End",execution_time = (end_time-start_time)/1_000_000,
                     **kwargs_decorator)
                 return result
             except Exception as e:
@@ -616,16 +616,18 @@ class Broker:
                         'average_price':price,\
                         'current_datetime':self.data_guy.current_datetime,\
                         'current_ltp':self.data_guy.current_ltp}
+            logger1.log(xyzzyspoon0 = len(self.positions_book), positions_book=self.positions_book)
             logger1.log(price=price,position=position)
             self.positions_book = self.positions_book.append\
                                 (position,ignore_index=True)
-
+            logger1.log(xyzzyspoon1 = len(self.positions_book), positions_book=self.positions_book)
             self.tradebook = self.tradebook.append(\
                 position,ignore_index=True)
 
             self.get_pnl(current_datetime=current_datetime,
                         initiation_time=initiation_time)
-
+            self.positions_book.reset_index(inplace=True)
+            logger1.log(xyzzyspoon2 = len(self.positions_book), positions_book=self.positions_book)
             self.tradebook.to_csv(self.trades_df_name
                     ,index=False)
 
@@ -859,6 +861,7 @@ class Broker:
             return pnl
 
         elif self.broker_for_trade == 'PAPER':
+            logger1.log(thwack=len(self.positions_book), positions_book=self.positions_book)
             if len(self.positions_book) == 0:
                 return self.paper_trade_realized_pnl
             self.positions_book['instrument_id_data'] = \
@@ -878,7 +881,7 @@ class Broker:
 
             pnl = round(self.paper_trade_realized_pnl \
                 + self.positions_book['pnl'].sum(),2)
-
+            logger1.log(thwack2=len(self.positions_book), positions_book=self.positions_book)
             #Aggregate df to remove squared off positions
             self.positions_book = self.positions_book[['instrument_id',\
                                 'exchange','quantity','ltp',\
@@ -886,14 +889,14 @@ class Broker:
                                 .groupby(['instrument_id',\
                                     'exchange','ltp'])\
                                 .sum().reset_index()
-
+            logger1.log(thwack3=len(self.positions_book), positions_book=self.positions_book)
             self.paper_trade_realized_pnl += round(self.positions_book[\
                             self.positions_book['quantity']==0]\
                             ['pnl'].sum(),2)
-
+            logger1.log(thwack4=len(self.positions_book), positions_book=self.positions_book)
             self.positions_book = self.positions_book[\
                             self.positions_book['quantity']!=0]
-
+            logger1.log(thwack5=len(self.positions_book), positions_book=self.positions_book)
             self.positions_book['average_price'] = self.positions_book['ltp'] - \
                         (\
                             self.positions_book['pnl']\
@@ -905,7 +908,7 @@ class Broker:
             #         {datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.csv'''\
             #         .replace(" ","")
             #         , index=False)
-
+            logger1.log(thwack6=len(self.positions_book), positions_book=self.positions_book)
             return pnl
             
         elif self.broker_for_trade == 'BACKTEST':
