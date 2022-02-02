@@ -37,7 +37,7 @@ def keep_log (**kwargs_decorator):
                     'className': args[0].__class__.__name__,
                     'functionName': original_function.__name__}
             try:
-                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator)
+                logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs_decorator)
             except:
                 pass
             start_time = perf_counter_ns()
@@ -761,12 +761,10 @@ class Broker:
         Returns:
             pd.Series: Series of LTP of instrument
         """     
-        ## instrument_df should have instrument_id_data column
-
-        logger1.log(instrument_df=instrument_df.to_json())
+        ## instruments_df should have instrument_id_data column
 
         if self.broker_for_data == "ZERODHA":
-            df = instrument_df.copy()
+            df = instruments_df.copy()
             df['exchange:instrument_id'] = exchange + ":" + df['instrument_id_data']
             last_price = pd.DataFrame.from_dict(self.kite.ltp(\
                             list(df['exchange:instrument_id']))\
@@ -774,13 +772,11 @@ class Broker:
             last_price['exchange:instrument_id'] = last_price.index
             ltp = df.merge(last_price,how='left',on='exchange:instrument_id')['last_price']
 
-            logger1.log(instrument_df=instrument_df.to_json(),
-                ltp_df=ltp.to_json())
             return ltp
 
         elif self.broker_for_data == "KOTAK":
             ## GET LTP FROM KOTAK
-            df = instrument_df.copy()
+            df = instruments_df.copy()
             df['ltp'] = None
             for idx,each_instrument in df.iterrows():
                 instrument_id = each_instrument['instrument_id_data']
@@ -790,8 +786,6 @@ class Broker:
             
             ltp = df['ltp']
 
-            logger1.log(instrument_df=instrument_df.to_json(),
-                ltp_df=ltp.to_json())
             return ltp
 
         elif self.broker_for_data == 'SIM':
