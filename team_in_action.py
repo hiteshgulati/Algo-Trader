@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     log_folder_name = 'logs'
 
-    candle_length = 15
+    candle_length = 5
     per_trade_fee = -.01
     lots_traded = 10
     underlying_name = 'NIFTY'
