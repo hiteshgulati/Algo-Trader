@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     log_folder_name = 'logs'
 
-    candle_length = 15
+    candle_length = 5
     per_trade_fee = -.01
     lots_traded = 10
     underlying_name = 'NIFTY'
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     broker_for_trade = 'paper'
     broker_for_data = 'sim'
 
-    pause_between_iterations = 240 
+    pause_between_iterations = .7 
 
     historical_data_folder_name = 'historical data'
     fno_folder_name = 'FNO'

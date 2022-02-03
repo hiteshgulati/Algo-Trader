@@ -345,7 +345,7 @@ class Data_guy:
             'current_position': self.events_and_actions.current_position, \
             'straddle_strike': self.events_and_actions.straddle_strike, \
             'strangle_strike_low': self.events_and_actions.strangle_strike_low, \
-            'strangle_strike_low': self.events_and_actions.strangle_strike_high, \
+            'strangle_strike_high': self.events_and_actions.strangle_strike_high, \
             'position_entry_ltp': self.events_and_actions.position_entry_ltp, \
             'is_hedged': self.events_and_actions.is_hedged, \
             'is_closed': self.events_and_actions.is_closed,
