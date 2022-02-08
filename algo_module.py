@@ -1512,7 +1512,7 @@ class Trader:
     def strike_discovery(self, underlying, call_put, expiry_datetime, \
                          based_on_value, value, 
                          current_datetime, initiation_time,
-                         range_from_atm=2000) -> (int,float):
+                         range_from_atm=2000) -> tuple:
         """
         Scans through multiple options and returns best suits Strike which has:
             Price or Delta closest to Value
