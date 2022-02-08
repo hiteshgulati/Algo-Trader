@@ -127,37 +127,42 @@ if __name__ == '__main__':
     # switch_off_time = datetime(2020,1,1,15,10,0).time()
 
     #For Simulation
-    day_start_datetime = datetime(2021,5,17,9,15)
-    trading_start_time = datetime(2021,5,17,9,28).time()
-    trading_close_time = datetime(2021,5,17,15,7).time()
-    switch_off_time =    datetime(2021,5,17,15,10).time()
+    # day_start_datetime = datetime(2021,5,17,9,15)
+    # trading_start_time = datetime(2021,5,17,9,20).time()
+    # trading_close_time = datetime(2021,5,17,9,25).time()
+    # switch_off_time =    datetime(2021,5,17,9,25).time()
 
     # For Live trade testing
-    # day_start_datetime = None
-    # trading_start_time = datetime(2020,1,1,1,22).time()
-    # trading_close_time = datetime(2020,1,1,1,30).time()
-    # switch_off_time =    datetime(2020,1,1,1,32,10).time()
+    day_start_datetime = None
+    trading_start_time = datetime(2020,1,1,0,37).time()
+    trading_close_time = datetime(2020,1,1,0,40).time()
+    switch_off_time =    datetime(2020,1,1,0,40,30).time()
 
     # non_expiry_day_no_candle_time = datetime(2020, 1, 1, 9, 15).time()
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
 
     is_kite_access_token_available = True
-    kite_request_token='lk3ZOxFhAQmk9ufXmxJDWe1hBn17pIil'
+    kite_request_token='OYQWzgNVHOOKMHaE64S2Mz9tkayT1WsI'
 
     broker_secret_file_name = 'broker_secret.json'
 
     log_folder_name = 'logs'
 
-    candle_length = 5
+    candle_length = 1
     per_trade_fee = -.01
     lots_traded = 10
     underlying_name = 'NIFTY'
 
     broker_for_trade = 'paper'
-    broker_for_data = 'sim'
+    broker_for_data = 'zerodha'
 
     pause_between_iterations = .7 
+
+    broker_connection_loss = [{'start_datetime':datetime(2021,5,17,9,20),
+                                'end_datetime':datetime(2021,5,17,9,25)},
+                            {'start_datetime':datetime(2021,5,17,10,20),
+                            'end_datetime':datetime(2021,5,17,10,25)}]
 
     historical_data_folder_name = 'historical data'
     fno_folder_name = 'FNO'
