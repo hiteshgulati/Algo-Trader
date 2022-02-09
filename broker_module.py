@@ -10,6 +10,8 @@ from time import perf_counter_ns, perf_counter
 import os
 
 logger1 = None
+broker_connection_loss = None
+exchange_connection_loss = None
 
 def keep_log (**kwargs_decorator):
     """
@@ -55,6 +57,31 @@ def keep_log (**kwargs_decorator):
         return wrapper_function
     return decorator_function
 
+
+def connection_loss (**kwargs_decorator):
+    default_return = None
+    if 'default_return' in kwargs_decorator:
+        default_return = kwargs_decorator.pop('default_return')
+    
+    def decorator_function (original_function):
+        def wrapper_function(*args,**kwargs):
+            if not args[0].connection_loss or not kwargs['current_datetime']:
+                result = original_function(*args,**kwargs)
+            else:
+                is_connection_lost = False
+                for block_time in args[0].connection_loss:
+                    if (kwargs['current_datetime'] >= block_time['start_datetime']) & (kwargs['current_datetime'] < block_time['end_datetime']):
+                        is_connection_lost = True
+                        break
+                if is_connection_lost:
+                    result = default_return
+                    logger1.log(status="Connection Lost",**kwargs_decorator,**{'args':args[1:]},**kwargs)
+                else:
+                    result = original_function(*args,**kwargs)
+            return result
+        return wrapper_function
+    return decorator_function
+                    
 
 class Broker:
     """
@@ -120,11 +147,14 @@ class Broker:
         global logger1
         logger1 = logger
         pass
+    
 
     @keep_log()
     def set_parameters(self, broker_for_trade, broker_for_data,
                 historical_data_folder_name, underlying_name,
                 fno_folder_name,equity_folder_name,
+                broker_connection_loss = None,
+                exchange_connection_loss = None,
                 data_guy=None,
                 kite_api_key=None, kite_access_token=None,
                 kotak_consumer_key=None, kotak_access_token=None,
@@ -194,6 +224,9 @@ class Broker:
         self.kotak = None
         self.sim = None
 
+        self.connection_loss = broker_connection_loss
+        
+
         #Instruments Book contains all 
         #   available instruments in the market 
         #   and its correspoing details like: 
@@ -215,7 +248,8 @@ class Broker:
                             underlying_name=underlying_name,
                             historical_data_folder_name = historical_data_folder_name,
                             fno_folder_name = fno_folder_name,
-                            equity_folder_name = equity_folder_name)
+                            equity_folder_name = equity_folder_name,
+                            exchange_connection_loss = exchange_connection_loss)
 
         #Set market broker object for Data Broker 
         #   if not same as Trade Broker
@@ -233,7 +267,8 @@ class Broker:
                             underlying_name=underlying_name,
                             historical_data_folder_name = historical_data_folder_name,
                             fno_folder_name = fno_folder_name,
-                            equity_folder_name = equity_folder_name)
+                            equity_folder_name = equity_folder_name,
+                            exchange_connection_loss = exchange_connection_loss)
         
         #df to maintain current positions
         self.positions_book = pd.DataFrame()
@@ -250,9 +285,10 @@ class Broker:
         self.paper_trade_realized_pnl = 0
 
 
-
+    @connection_loss(default_return=False)
     @keep_log(default_return=False)
     def set_broker_object(self,broker_name,underlying_name,
+                            exchange_connection_loss = exchange_connection_loss,
                             historical_data_folder_name = None,
                             fno_folder_name = None,
                             equity_folder_name = None,
@@ -351,7 +387,8 @@ class Broker:
                 underlying_name = underlying_name,
                 historical_data_folder_name=historical_data_folder_name,
                 fno_folder_name=fno_folder_name,
-                equity_folder_name=equity_folder_name)
+                equity_folder_name=equity_folder_name,
+                exchange_connection_loss=exchange_connection_loss)
             return True
 
         elif broker_name == 'PAPER':
@@ -511,6 +548,7 @@ class Broker:
             ## GET INSTRUMENT ID FOR BACKTEST
             return instrument_id
 
+    @connection_loss()
     @keep_log()
     def place_market_order(self, instrument_id, 
         buy_sell, quantity, current_datetime, 
@@ -616,18 +654,18 @@ class Broker:
                         'average_price':price,\
                         'current_datetime':self.data_guy.current_datetime,\
                         'current_ltp':self.data_guy.current_ltp}
-            logger1.log(xyzzyspoon0 = len(self.positions_book), positions_book=self.positions_book)
+            
             logger1.log(price=price,position=position)
             self.positions_book = self.positions_book.append\
                                 (position,ignore_index=True)
-            logger1.log(xyzzyspoon1 = len(self.positions_book), positions_book=self.positions_book)
+            
             self.tradebook = self.tradebook.append(\
                 position,ignore_index=True)
 
             self.get_pnl(current_datetime=current_datetime,
                         initiation_time=initiation_time)
             self.positions_book.reset_index(inplace=True)
-            logger1.log(xyzzyspoon2 = len(self.positions_book), positions_book=self.positions_book)
+            
             self.tradebook.to_csv(self.trades_df_name
                     ,index=False)
 
@@ -637,9 +675,30 @@ class Broker:
             ## PLACE ORDER ON BACKTEST
             return None
 
+    # def connection_loss (self,**kwargs_decorator):
+    #     default_return = None
+    #     if 'default_return' in kwargs_decorator:
+    #         default_return = kwargs_decorator.pop('default_return')
+        
+    #     def decorator_function (original_function):
+    #         @wraps(original_function)
+    #         def wrapper_function (*args,**kwargs):
+    #             class_function_name_dict = {\
+    #                 'className': args[0].__class__.__name__,
+    #                 'functionName': original_function.__name__}
+    #             try:
+    #                 logger1.log(status="Called",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs)
+    #             except:
+    #                 pass
 
+
+        
+        pass
+
+    
+    @connection_loss()
     @keep_log()
-    def cancel_order(self, broker_order_id) -> Boolean:
+    def cancel_order(self, broker_order_id, current_datetime=None) -> Boolean:
         """(T)
         Cancel existing unexecuted order using broker_order_id
 
@@ -680,6 +739,7 @@ class Broker:
             return None
 
 
+    @connection_loss()
     @keep_log()
     def get_ltp (self, instrument_id, 
         current_datetime, initiation_time,
@@ -721,6 +781,7 @@ class Broker:
             return ltp
 
 
+    @connection_loss()
     @keep_log()
     def get_multiple_ltp (self, instruments_df, 
         current_datetime, initiation_time,
@@ -773,8 +834,9 @@ class Broker:
             return ltp
 
 
+    @connection_loss()
     @keep_log()
-    def get_positions (self) -> pd.DataFrame:
+    def get_positions (self, current_datetime=None) -> pd.DataFrame:
         """(T)
         Get current positions
 
@@ -813,6 +875,7 @@ class Broker:
             return positions_df
 
     
+    @connection_loss()
     @keep_log()
     def get_pnl (self,current_datetime, initiation_time) -> float:
         """(T)
@@ -861,7 +924,7 @@ class Broker:
             return pnl
 
         elif self.broker_for_trade == 'PAPER':
-            logger1.log(thwack=len(self.positions_book), positions_book=self.positions_book)
+            
             if len(self.positions_book) == 0:
                 return self.paper_trade_realized_pnl
             self.positions_book['instrument_id_data'] = \
@@ -881,7 +944,7 @@ class Broker:
 
             pnl = round(self.paper_trade_realized_pnl \
                 + self.positions_book['pnl'].sum(),2)
-            logger1.log(thwack2=len(self.positions_book), positions_book=self.positions_book)
+            
             #Aggregate df to remove squared off positions
             self.positions_book = self.positions_book[['instrument_id',\
                                 'exchange','quantity','ltp',\
@@ -889,14 +952,14 @@ class Broker:
                                 .groupby(['instrument_id',\
                                     'exchange','ltp'])\
                                 .sum().reset_index()
-            logger1.log(thwack3=len(self.positions_book), positions_book=self.positions_book)
+            
             self.paper_trade_realized_pnl += round(self.positions_book[\
                             self.positions_book['quantity']==0]\
                             ['pnl'].sum(),2)
-            logger1.log(thwack4=len(self.positions_book), positions_book=self.positions_book)
+            
             self.positions_book = self.positions_book[\
                             self.positions_book['quantity']!=0]
-            logger1.log(thwack5=len(self.positions_book), positions_book=self.positions_book)
+            
             self.positions_book['average_price'] = self.positions_book['ltp'] - \
                         (\
                             self.positions_book['pnl']\
@@ -908,7 +971,7 @@ class Broker:
             #         {datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.csv'''\
             #         .replace(" ","")
             #         , index=False)
-            logger1.log(thwack6=len(self.positions_book), positions_book=self.positions_book)
+            
             return pnl
             
         elif self.broker_for_trade == 'BACKTEST':
@@ -916,6 +979,7 @@ class Broker:
             return None
 
 
+    
     @keep_log()
     def get_next_expiry_datetime(self, underlying='NIFTY') -> datetime:
         """(D) - data broker is used, 
@@ -1003,8 +1067,9 @@ class Broker:
             return available_strikes
 
 
+    @connection_loss()
     @keep_log()
-    def is_order_complete (self, broker_order_id) -> Boolean:
+    def is_order_complete (self, broker_order_id, current_datetime = None) -> Boolean:
         """(T)
         Send confirmation if the order is completed
 
@@ -1036,20 +1101,22 @@ class Broker:
         #Always return True for Paper trade as orders are not punched
         elif self.broker_for_trade == 'PAPER':
             return True
-
             
 
 class Exchange:
     def __init__(self) -> None:
         pass
 
+
     def set_parameters (self,current_datetime, 
             historical_data_folder_name, underlying_name,
-            fno_folder_name,equity_folder_name):
+            fno_folder_name,equity_folder_name,
+            exchange_connection_loss = None):
         
         self.underlying_name = underlying_name.upper()
         self.instruments_book = pd.DataFrame()
         self.tick_book = pd.DataFrame()
+        self.connection_loss = exchange_connection_loss
         
         self.prepare_data_book(current_datetime=current_datetime,
             historical_data_folder_name=historical_data_folder_name,
@@ -1057,6 +1124,7 @@ class Exchange:
             equity_folder_name=equity_folder_name)
         
     
+    @connection_loss(default_return=False)
     @keep_log(default_return=False)
     def prepare_data_book(self,current_datetime,
             historical_data_folder_name,
@@ -1136,6 +1204,8 @@ class Exchange:
         # self.instruments_book.to_csv(current_datetime.strftime("interim_df/%Y-%m-%d Instruments.csv"), index=False)
         return True
 
+
+    @connection_loss()
     @keep_log()
     def ltp(self,instruments,current_datetime, initiation_time) -> float:
         
@@ -1165,6 +1235,8 @@ class Exchange:
 
             return k
 
+
+    @connection_loss()
     @keep_log(default_return = {'buy_price':0,'sell_price':0})
     def quote (self,instrument_id,current_datetime, initiation_time):
         #Quote

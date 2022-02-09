@@ -1260,7 +1260,7 @@ class Events_and_actions:
         """        
 
         output = False
-        current_position = self.trader.get_positions()
+        current_position = self.trader.get_positions(current_datetime = current_datetime)
 
         #Exit only sell positions thus filter out all quantities bought
         current_position = current_position[ \
@@ -1312,7 +1312,7 @@ class Events_and_actions:
 
         output = False
         #Get all current positions
-        current_position = self.trader.get_positions()
+        current_position = self.trader.get_positions(current_datetime = current_datetime)
 
         
         if len(current_position) != 0:
@@ -1488,7 +1488,8 @@ class Trader:
 
         #Check if all orders are executed
         for each_broker_order_id in broker_order_id_list:
-            each_broker_order_success = self.broker.is_order_complete(each_broker_order_id)
+            each_broker_order_success = self.broker.is_order_complete(each_broker_order_id, 
+                    current_datetime = current_datetime)
 
             is_order_successful = is_order_successful & each_broker_order_success
 
@@ -1500,7 +1501,8 @@ class Trader:
                 current_wait_time < wait_time_secs):  # wait till orders are successful or wait time is over
             is_order_successful = True
             for each_broker_order_id in broker_order_id_list:
-                is_order_successful = is_order_successful & self.broker.is_order_complete(each_broker_order_id)
+                is_order_successful = is_order_successful & self.broker.is_order_complete(each_broker_order_id, 
+                        current_datetime = current_datetime)
             current_wait_time = perf_counter() - t0
 
         #After all orders are successful or wait time is over
@@ -1597,14 +1599,14 @@ class Trader:
 
 
     @keep_log()
-    def get_positions(self) -> pd.DataFrame:
+    def get_positions(self,current_datetime=None) -> pd.DataFrame:
         """
         Fetch current positions from Broker
 
         Returns:
             positions(pd.DataFrame): Current positions in form of DataFrame
         """        
-        positions = self.broker.get_positions()
+        positions = self.broker.get_positions(current_datetime = current_datetime)
         return positions
 
 
@@ -1628,6 +1630,8 @@ class Algo_manager:
                 candle_length=5,
                 quantity_per_lot = 50,
                 lots_traded = 1,
+                broker_connection_loss = None,
+                exchange_connection_loss = None,
                 non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time(),
                 expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time(),
                 kite_api_key=None, kite_access_token=None,
@@ -1737,7 +1741,9 @@ class Algo_manager:
             underlying_name=underlying_name,
             historical_data_folder_name = historical_data_folder_name,
             fno_folder_name = fno_folder_name,
-            equity_folder_name = equity_folder_name)
+            equity_folder_name = equity_folder_name,
+            broker_connection_loss = broker_connection_loss,
+            exchange_connection_loss = exchange_connection_loss)
 
         #setting parameters for data_guy
         self.data_guy.set_parameters( \
