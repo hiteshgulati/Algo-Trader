@@ -59,6 +59,8 @@ def execute_algo (**kwargs):
         kite_access_token=broker_secret['kite_access_token'],
         log_folder=logs_folder_path,
         current_datetime = current_datetime,
+        broker_connection_loss = kwargs['broker_connection_loss'],
+        exchange_connection_loss = kwargs['exchange_connection_loss'],
         begin_time=kwargs['trading_start_time'],
         close_time=kwargs['trading_close_time'],
         quantity_per_lot = 50,
@@ -82,7 +84,7 @@ def execute_algo (**kwargs):
         current_datetime = kwargs['day_start_datetime']
     else: 
         current_datetime = datetime.now()
-    
+
     while current_datetime.time() <= kwargs['switch_off_time']:
         initiation_time = perf_counter()
         algo_manager.action(current_datetime=current_datetime,
@@ -132,24 +134,24 @@ if __name__ == '__main__':
     # trading_close_time = datetime(2021,5,17,9,25).time()
     # switch_off_time =    datetime(2021,5,17,9,25).time()
 
-    # For Live trade testing
+    # For Live Paper trade
     day_start_datetime = None
-    trading_start_time = datetime(2020,1,1,0,37).time()
-    trading_close_time = datetime(2020,1,1,0,40).time()
-    switch_off_time =    datetime(2020,1,1,0,40,30).time()
+    trading_start_time = datetime(2020,1,1,12,0).time()
+    trading_close_time = datetime(2020,1,1,15,7).time()
+    switch_off_time =    datetime(2020,1,1,15,10).time()
 
     # non_expiry_day_no_candle_time = datetime(2020, 1, 1, 9, 15).time()
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
 
     is_kite_access_token_available = True
-    kite_request_token='OYQWzgNVHOOKMHaE64S2Mz9tkayT1WsI'
+    kite_request_token='FlB0QUAVm1xyMmRf7aLp36GnzQIyP6qe'
 
     broker_secret_file_name = 'broker_secret.json'
 
     log_folder_name = 'logs'
 
-    candle_length = 1
+    candle_length = 5
     per_trade_fee = -.01
     lots_traded = 10
     underlying_name = 'NIFTY'
@@ -159,10 +161,15 @@ if __name__ == '__main__':
 
     pause_between_iterations = .7 
 
-    broker_connection_loss = [{'start_datetime':datetime(2021,5,17,9,20),
-                                'end_datetime':datetime(2021,5,17,9,25)},
-                            {'start_datetime':datetime(2021,5,17,10,20),
-                            'end_datetime':datetime(2021,5,17,10,25)}]
+    # broker_connection_loss = [{'start_datetime':datetime(2021,5,17,9,16),
+    #                             'end_datetime':datetime(2021,5,17,9,18)},
+    #                         {'start_datetime':datetime(2021,5,17,9,22),
+    #                         'end_datetime':datetime(2021,5,17,9,23)},
+    #                         {'start_datetime':datetime(2021,5,17,10,22),
+    #                         'end_datetime':datetime(2021,5,17,10,23)}]
+
+    broker_connection_loss = None
+    exchange_connection_loss = None
 
     historical_data_folder_name = 'historical data'
     fno_folder_name = 'FNO'
@@ -187,4 +194,6 @@ if __name__ == '__main__':
         pause_between_iterations = pause_between_iterations,
         historical_data_folder_name = historical_data_folder_name,
         fno_folder_name = fno_folder_name,
-        equity_folder_name = equity_folder_name)
+        equity_folder_name = equity_folder_name,
+        broker_connection_loss = broker_connection_loss,
+        exchange_connection_loss = exchange_connection_loss)
