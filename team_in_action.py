@@ -123,10 +123,10 @@ def execute_algo (**kwargs):
 if __name__ == '__main__':
     
     #For Live Trading
-    # day_start_datetime = None
-    # trading_start_time = datetime(2020,1,1,9,28).time()
-    # trading_close_time = datetime(2020,1,1,15,7).time()
-    # switch_off_time = datetime(2020,1,1,15,10,0).time()
+    day_start_datetime = None
+    trading_start_time = datetime(2020,1,1,9,58).time()
+    trading_close_time = datetime(2020,1,1,15,7).time()
+    switch_off_time = datetime(2020,1,1,15,10,0).time()
 
     #For Simulation
     # day_start_datetime = datetime(2021,5,17,9,15)
@@ -135,28 +135,28 @@ if __name__ == '__main__':
     # switch_off_time =    datetime(2021,5,17,9,25).time()
 
     # For Live Paper trade
-    day_start_datetime = None
-    trading_start_time = datetime(2020,1,1,12,0).time()
-    trading_close_time = datetime(2020,1,1,15,7).time()
-    switch_off_time =    datetime(2020,1,1,15,10).time()
+    # day_start_datetime = None
+    # trading_start_time = datetime(2020,1,1,12,0).time()
+    # trading_close_time = datetime(2020,1,1,15,7).time()
+    # switch_off_time =    datetime(2020,1,1,15,10).time()
 
     # non_expiry_day_no_candle_time = datetime(2020, 1, 1, 9, 15).time()
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
 
     is_kite_access_token_available = True
-    kite_request_token='FlB0QUAVm1xyMmRf7aLp36GnzQIyP6qe'
+    kite_request_token='9ssq7Xyih3uC16rtS23BdiO6wZr5cj5c'
 
     broker_secret_file_name = 'broker_secret.json'
 
     log_folder_name = 'logs'
 
     candle_length = 5
-    per_trade_fee = -.01
-    lots_traded = 10
+    per_trade_fee = -20
+    lots_traded = 1
     underlying_name = 'NIFTY'
 
-    broker_for_trade = 'paper'
+    broker_for_trade = 'zerodha'
     broker_for_data = 'zerodha'
 
     pause_between_iterations = .7 
