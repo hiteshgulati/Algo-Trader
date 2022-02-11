@@ -901,11 +901,25 @@ class Broker:
         """        
 
         if self.broker_for_trade == 'ZERODHA':
-            positions = pd.DataFrame(self.kite.positions()['net'])
-            if len(positions)==0:
+            p = pd.DataFrame(self.kite.positions()['net'])
+            if len(p)==0:
                 pnl = 0
             else:
-                pnl =  round(positions['pnl'].sum(),2)
+                p['exchange:instrument_id'] = p['exchange'] \
+                        + ":" + \
+                        p['tradingsymbol']
+                p['last_price'] = pd.DataFrame.from_dict(\
+                    self.kite.ltp(list(p['exchange:instrument_id'])),\
+                        orient='index').reset_index()['last_price']
+                p['qty_in_hand'] = p['buy_quantity'] - \
+                        p ['sell_quantity']
+                p['cash_flow_realized'] = \
+                    (p['sell_quantity']*p['sell_price']) - \
+                        (p['buy_quantity'] * p['buy_price'])
+                p['cash_flow_unrealized'] = \
+                    p['qty_in_hand'] * p['last_price']
+                pnl = p['cash_flow_realized'].sum() + \
+                    p['cash_flow_unrealized'].sum()
             return pnl
 
         elif self.broker_for_trade == 'KOTAK':
@@ -915,8 +929,9 @@ class Broker:
             if list(positions)[0] == 'Success':
                 positions_df = pd.DataFrame(positions['Success'])
                 if len(positions_df) != 0:
-                    positions_df['unrealized_pnl'] = positions_df['netTrdQtyLot']\
-                                                        * positions_df['lastPrice']
+                    positions_df['unrealized_pnl'] = \
+                        positions_df['netTrdQtyLot']\
+                            * positions_df['lastPrice']
                     pnl = positions_df['sellTradedVal'].sum()\
                             - positions_df['buyTradedVal'].sum()\
                             + positions_df['unrealized_pnl'].sum()
