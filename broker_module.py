@@ -793,7 +793,7 @@ class Broker:
         Args:
             instruments_df (pd.DataFrame): df of multiple instruments 
                 for which LTP is to be fetched. df should contain
-                    - instrument_id column
+                    - instrument_id_data column
             exchange (str, optional): NSE/NFO. Defaults to "NFO".
 
         Returns:
@@ -945,11 +945,14 @@ class Broker:
             self.positions_book['instrument_id_data'] = \
                                     self.positions_book['instrument_id']
             # Get LTP of all instruments
-            self.positions_book['ltp'] = self.get_multiple_ltp\
-                                        (instruments_df = self.positions_book,\
-                                        current_datetime = current_datetime, 
-                                        initiation_time = initiation_time,
-                                        exchange='NFO')
+            ltp = self.get_multiple_ltp\
+                        (instruments_df = self.positions_book,\
+                        current_datetime = current_datetime, 
+                        initiation_time = initiation_time,
+                        exchange='NFO')
+            if ltp == None:
+                raise Exception("Connection Lost")
+            self.positions_book['ltp'] = ltp
             #Calculate change in price by LTP - average price
             self.positions_book['price_change'] = self.positions_book['ltp']\
                                         - self.positions_book['average_price']
@@ -992,7 +995,6 @@ class Broker:
         elif self.broker_for_trade == 'BACKTEST':
             ## GET PNL FROM BACKTEST
             return None
-
 
     
     @keep_log()

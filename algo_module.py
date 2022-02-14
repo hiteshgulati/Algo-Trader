@@ -311,10 +311,14 @@ class Data_guy:
         self.current_datetime = current_datetime
 
         # Fetch strategy pnl and brokerage/trader fee
-        self.strategy_pnl = round(self.broker.get_pnl(\
+        
+        strategy_pnl = round(self.broker.get_pnl(\
                         current_datetime=current_datetime,
                         initiation_time=initiation_time),\
                         2)
+        
+        if strategy_pnl != None:
+            self.strategy_pnl = strategy_pnl
         self.brokerage_pnl = round(self.trader.total_trade_fee,2)
         self.current_pnl = round(self.strategy_pnl  + self.brokerage_pnl,2)
 
@@ -323,9 +327,11 @@ class Data_guy:
         self.trailing_pnl = self.current_pnl - self.max_pnl
 
         #update current ltp
-        self.current_ltp = self.broker.get_ltp(self.underlying_name,
+        ltp = self.broker.get_ltp(self.underlying_name,
                     current_datetime=self.current_datetime,
                     initiation_time=initiation_time)
+        if ltp != None:
+            self.current_ltp = ltp
 
         #update candles
         self.candle_t_2 = self.candle(t_minus=2,candle_type='fixed')
@@ -1262,6 +1268,9 @@ class Events_and_actions:
         output = False
         current_position = self.trader.get_positions(current_datetime = current_datetime)
 
+        if current_position == None:
+            raise Exception("No Reply from Broker")
+
         #Exit only sell positions thus filter out all quantities bought
         current_position = current_position[ \
             current_position['quantity'] < 0]
@@ -1314,6 +1323,8 @@ class Events_and_actions:
         #Get all current positions
         current_position = self.trader.get_positions(current_datetime = current_datetime)
 
+        if current_position == None:
+            raise Exception("No Reply from Broker")
         
         if len(current_position) != 0:
 
@@ -1456,6 +1467,8 @@ class Trader:
                     exchange=each_order['exchange'],
                     current_datetime=current_datetime,
                     initiation_time=initiation_time)
+                if broker_order_id == None:
+                    raise Exception("No Reply from Broker: Placing Order")
                 broker_order_id_list.append(broker_order_id)
                 self.events_and_actions.orderbook.drop(idx, inplace=True)
                 self.total_trade_fee += self.per_trade_fee
@@ -1468,17 +1481,21 @@ class Trader:
         #       expiry_datetime
         else:
             for idx, each_order in self.events_and_actions.orderbook.iterrows():
-                instrument_id = self.broker.get_fno_instrument_id(broker_for='trade',
-                                                                    strike=each_order['strike'],
-                                                                    underlying=self.data_guy.underlying_name,
-                                                                    call_put=each_order['call_put'],
-                                                                    expiry_datetime=each_order['expiry_datetime']
-                                                                    )
-                broker_order_id = self.broker.place_market_order(instrument_id=instrument_id,
-                                                                    buy_sell=each_order['buy_sell'],
-                                                                    quantity=each_order['quantity'],
-                                                                    current_datetime=current_datetime,
-                                                                    initiation_time=initiation_time)
+                instrument_id = self.broker.get_fno_instrument_id(
+                    broker_for='trade',
+                    strike=each_order['strike'],
+                    underlying=self.data_guy.underlying_name,
+                    call_put=each_order['call_put'],
+                    expiry_datetime=each_order['expiry_datetime']
+                    )
+                broker_order_id = self.broker.place_market_order(
+                    instrument_id=instrument_id,
+                    buy_sell=each_order['buy_sell'],
+                    quantity=each_order['quantity'],
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time)
+                if broker_order_id == None:
+                    raise Exception("No Reply from Broker: Placing Order")
                 broker_order_id_list.append(broker_order_id)
                 self.events_and_actions.orderbook.drop(idx, inplace=True)
                 self.total_trade_fee += self.per_trade_fee
@@ -1501,8 +1518,11 @@ class Trader:
                 current_wait_time < wait_time_secs):  # wait till orders are successful or wait time is over
             is_order_successful = True
             for each_broker_order_id in broker_order_id_list:
-                is_order_successful = is_order_successful & self.broker.is_order_complete(each_broker_order_id, 
+                this_order_success = self.broker.is_order_complete(each_broker_order_id, 
                         current_datetime = current_datetime)
+                if this_order_success == None:
+                    raise Exception("No reply on Order Success")
+                is_order_successful = is_order_successful & this_order_success
             current_wait_time = perf_counter() - t0
 
         #After all orders are successful or wait time is over
