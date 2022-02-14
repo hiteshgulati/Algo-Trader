@@ -1,3 +1,4 @@
+from turtle import pos
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -64,8 +65,9 @@ class Logger ():
             formatter = logging.Formatter('%(levelname)s|%(className)s->%(functionName)s|%(message)s')
 
             timestamp_string = current_datetime.strftime("%Y-%m-%d @ %H_%M_%S")
+            current_timestamp_string = datetime.now().strftime("Run- %H_%M_%S")
             file_handler = logging.FileHandler(
-                f'{log_folder}/T-{broker_for_trade} D-{broker_for_data} {timestamp_string} team.log')
+                f'{log_folder}/T-{broker_for_trade} D-{broker_for_data} {timestamp_string} {current_timestamp_string} team.log')
             file_handler.setFormatter(formatter)
 
             self.logger.addHandler(file_handler)
@@ -287,6 +289,8 @@ class Data_guy:
                             'high':None,
                             'low':None,
                             'close':None}
+
+        self.is_broker_working = True
         
         logger1.log(info="Data Guy Initiated")
 
@@ -309,16 +313,18 @@ class Data_guy:
         """        
 
         self.current_datetime = current_datetime
+        self.is_broker_working = True
 
         # Fetch strategy pnl and brokerage/trader fee
         
-        strategy_pnl = round(self.broker.get_pnl(\
+        strategy_pnl = self.broker.get_pnl(\
                         current_datetime=current_datetime,
-                        initiation_time=initiation_time),\
-                        2)
+                        initiation_time=initiation_time)
         
-        if strategy_pnl != None:
-            self.strategy_pnl = strategy_pnl
+        if strategy_pnl is not None:
+            self.strategy_pnl = round(strategy_pnl,2)
+        else:
+            self.is_broker_working = False
         self.brokerage_pnl = round(self.trader.total_trade_fee,2)
         self.current_pnl = round(self.strategy_pnl  + self.brokerage_pnl,2)
 
@@ -330,9 +336,10 @@ class Data_guy:
         ltp = self.broker.get_ltp(self.underlying_name,
                     current_datetime=self.current_datetime,
                     initiation_time=initiation_time)
-        if ltp != None:
+        if ltp is not None:
             self.current_ltp = ltp
-
+        else:
+            self.is_broker_working = False
         #update candles
         self.candle_t_2 = self.candle(t_minus=2,candle_type='fixed')
         self.candle_t_1 = self.candle(t_minus=1,candle_type='fixed')
@@ -363,7 +370,8 @@ class Data_guy:
             'candle_t_1_start':self.candle_t_1['start_datetime'],\
             'candle_t_1_end':self.candle_t_1['end_datetime'],\
             'candle_t_1_open':self.candle_t_1['open'],
-            'candle_t_1_close':self.candle_t_1['close']}, \
+            'candle_t_1_close':self.candle_t_1['close'],
+            'is_broker_working':self.is_broker_working}, \
             ignore_index=True)
         #save data_df
         self.data_df.to_csv(self.data_df_store_path, index=False)
@@ -770,72 +778,73 @@ class Events_and_actions:
             strangle_strike_high = self.strangle_strike_high,
             strangle_strike_low = self.strangle_strike_low)
 
-        if self.event_total_loss_reached():
-            self.action_close_the_day(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_non_expiry_day_trailing_loss_reached():
-            self.action_close_the_day(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_expiry_day_trailing_loss_reached():
-            self.action_close_the_day(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_shop_close_time():
-            self.action_close_the_day(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_exit_straddle():
-            self.action_exit_position(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_exit_strangle():
-            self.action_exit_position(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_expiry_day_enter_position_no_candle_call_first():
-            self.action_enter_position_call_first(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_expiry_day_enter_position_no_candle_put_first():
-            self.action_enter_position_put_first(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time)
-        elif self.event_non_expiry_day_enter_position_no_candle_call_first():
-            self.action_enter_position_call_first(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time)
-        elif self.event_non_expiry_day_enter_position_no_candle_put_first():
-            self.action_enter_position_put_first(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_enter_position_call_first():
-            self.action_enter_position_call_first(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_enter_position_put_first():
-            self.action_enter_position_put_first(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time
-            )
-        elif self.event_expiry_day_open_shop():
-            self.action_expiry_day_buy_hedge(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time)
-        elif self.event_non_expiry_day_open_shop():
-            self.action_non_expiry_day_buy_hedge(
-                current_datetime=current_datetime,
-                initiation_time=initiation_time)
+        if self.data_guy.is_broker_working:
+            if self.event_total_loss_reached():
+                self.action_close_the_day(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_non_expiry_day_trailing_loss_reached():
+                self.action_close_the_day(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_expiry_day_trailing_loss_reached():
+                self.action_close_the_day(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_shop_close_time():
+                self.action_close_the_day(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_exit_straddle():
+                self.action_exit_position(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_exit_strangle():
+                self.action_exit_position(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_expiry_day_enter_position_no_candle_call_first():
+                self.action_enter_position_call_first(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_expiry_day_enter_position_no_candle_put_first():
+                self.action_enter_position_put_first(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time)
+            elif self.event_non_expiry_day_enter_position_no_candle_call_first():
+                self.action_enter_position_call_first(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time)
+            elif self.event_non_expiry_day_enter_position_no_candle_put_first():
+                self.action_enter_position_put_first(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_enter_position_call_first():
+                self.action_enter_position_call_first(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_enter_position_put_first():
+                self.action_enter_position_put_first(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time
+                )
+            elif self.event_expiry_day_open_shop():
+                self.action_expiry_day_buy_hedge(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time)
+            elif self.event_non_expiry_day_open_shop():
+                self.action_non_expiry_day_buy_hedge(
+                    current_datetime=current_datetime,
+                    initiation_time=initiation_time)
 
         logger1.log(at='end',
             is_closed=self.is_closed,
@@ -869,7 +878,7 @@ class Events_and_actions:
     @keep_log()
     def event_enter_position_call_first(self) -> boolean:
         output = False
-        if (not self.is_closed) & self.is_hedged & (self.current_position == None):
+        if (not self.is_closed) & self.is_hedged & (self.current_position is None):
             if self.data_guy.candle_t_2['open'] is not None and self.data_guy.candle_t_2['close'] is not None:
                 if abs(self.data_guy.candle_t_2['open'] - self.data_guy.candle_t_2['close']) < 15:
                     if self.data_guy.candle_t_1['open'] is not None and self.data_guy.candle_t_1['close'] is not None:
@@ -885,7 +894,7 @@ class Events_and_actions:
 
         output = False
 
-        if (not self.is_closed) & self.is_hedged & (self.current_position == None):
+        if (not self.is_closed) & self.is_hedged & (self.current_position is None):
             if self.data_guy.candle_t_2['open'] is not None and self.data_guy.candle_t_2['close'] is not None:
                 if abs(self.data_guy.candle_t_2['open'] - self.data_guy.candle_t_2['close']) < 15:
                     if self.data_guy.candle_t_1['open'] is not None and self.data_guy.candle_t_1['close'] is not None:
@@ -922,7 +931,7 @@ class Events_and_actions:
     @keep_log()
     def event_expiry_day_enter_position_no_candle_call_first(self) -> boolean:
         output = False
-        if (not self.is_closed) & self.is_hedged & (self.current_position == None):
+        if (not self.is_closed) & self.is_hedged & (self.current_position is None):
             if (self.data_guy.is_expiry_day) & (
                     self.data_guy.current_datetime.time() >= self.expiry_day_no_candle_time):
                 if self.data_guy.current_ltp >= self.data_guy.get_atm_strike():
@@ -947,7 +956,7 @@ class Events_and_actions:
     def event_non_expiry_day_enter_position_no_candle_call_first(self) -> boolean:
 
         output = False
-        if (not self.is_closed) & self.is_hedged & (self.current_position == None):
+        if (not self.is_closed) & self.is_hedged & (self.current_position is None):
             if (not self.data_guy.is_expiry_day) & (
                     self.data_guy.current_datetime.time() >= self.non_expiry_day_no_candle_time):
                 if self.data_guy.current_ltp >= self.data_guy.get_atm_strike():
@@ -961,7 +970,7 @@ class Events_and_actions:
 
         output = False
 
-        if (not self.is_closed) & self.is_hedged & (self.current_position == None):
+        if (not self.is_closed) & self.is_hedged & (self.current_position is None):
             if (not self.data_guy.is_expiry_day) & (
                     self.data_guy.current_datetime.time() >= self.non_expiry_day_no_candle_time):
                 if self.data_guy.current_ltp < self.data_guy.get_atm_strike():
@@ -1268,7 +1277,7 @@ class Events_and_actions:
         output = False
         current_position = self.trader.get_positions(current_datetime = current_datetime)
 
-        if current_position == None:
+        if current_position is None:
             raise Exception("No Reply from Broker")
 
         #Exit only sell positions thus filter out all quantities bought
@@ -1323,7 +1332,7 @@ class Events_and_actions:
         #Get all current positions
         current_position = self.trader.get_positions(current_datetime = current_datetime)
 
-        if current_position == None:
+        if current_position is None:
             raise Exception("No Reply from Broker")
         
         if len(current_position) != 0:
@@ -1467,7 +1476,8 @@ class Trader:
                     exchange=each_order['exchange'],
                     current_datetime=current_datetime,
                     initiation_time=initiation_time)
-                if broker_order_id == None:
+                if broker_order_id is None:
+                    self.data_guy.is_broker_working = False
                     raise Exception("No Reply from Broker: Placing Order")
                 broker_order_id_list.append(broker_order_id)
                 self.events_and_actions.orderbook.drop(idx, inplace=True)
@@ -1494,7 +1504,8 @@ class Trader:
                     quantity=each_order['quantity'],
                     current_datetime=current_datetime,
                     initiation_time=initiation_time)
-                if broker_order_id == None:
+                if broker_order_id is None:
+                    self.data_guy.is_broker_working = False
                     raise Exception("No Reply from Broker: Placing Order")
                 broker_order_id_list.append(broker_order_id)
                 self.events_and_actions.orderbook.drop(idx, inplace=True)
@@ -1520,7 +1531,8 @@ class Trader:
             for each_broker_order_id in broker_order_id_list:
                 this_order_success = self.broker.is_order_complete(each_broker_order_id, 
                         current_datetime = current_datetime)
-                if this_order_success == None:
+                if this_order_success is None:
+                    self.data_guy.is_broker_working = False
                     raise Exception("No reply on Order Success")
                 is_order_successful = is_order_successful & this_order_success
             current_wait_time = perf_counter() - t0
@@ -1599,10 +1611,13 @@ class Trader:
             fno_df=fno_df, broker_for='data')
 
         #Get LTP of all options
-        fno_df['instrument_ltp'] = self.broker.get_multiple_ltp(
+        instrument_ltp = self.broker.get_multiple_ltp(
                 instruments_df=fno_df, exchange='NFO',
                 current_datetime=current_datetime,
                 initiation_time=initiation_time)
+        
+        if instrument_ltp is not None:
+            fno_df['instrument_ltp'] = instrument_ltp
 
         #Calculate delta for options
         if based_on_value=='delta':
@@ -1627,6 +1642,9 @@ class Trader:
             positions(pd.DataFrame): Current positions in form of DataFrame
         """        
         positions = self.broker.get_positions(current_datetime = current_datetime)
+        if positions is None:
+            self.data_guy.is_broker_working = False
+            raise Exception("No Reply from Broker")
         return positions
 
 

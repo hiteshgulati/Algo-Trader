@@ -64,9 +64,10 @@ def connection_loss (**kwargs_decorator):
         default_return = kwargs_decorator.pop('default_return')
     
     def decorator_function (original_function):
+        @wraps(original_function)
         def wrapper_function(*args,**kwargs):
-            if not args[0].connection_loss or not kwargs['current_datetime']:
-                result = original_function(*args,**kwargs)
+            if args[0].connection_loss is None or kwargs['current_datetime'] is None:
+                result = original_function(*args,**kwargs)              
             else:
                 is_connection_lost = False
                 for block_time in args[0].connection_loss:
@@ -74,8 +75,11 @@ def connection_loss (**kwargs_decorator):
                         is_connection_lost = True
                         break
                 if is_connection_lost:
+                    class_function_name_dict = {\
+                        'className': args[0].__class__.__name__,
+                        'functionName': original_function.__name__}
                     result = default_return
-                    logger1.log(status="Connection Lost",**kwargs_decorator,**{'args':args[1:]},**kwargs)
+                    logger1.log(status="Connection Lost",extra=class_function_name_dict,**kwargs_decorator,**{'args':args[1:]},**kwargs)
                 else:
                     result = original_function(*args,**kwargs)
             return result
@@ -950,7 +954,7 @@ class Broker:
                         current_datetime = current_datetime, 
                         initiation_time = initiation_time,
                         exchange='NFO')
-            if ltp == None:
+            if ltp is None:
                 raise Exception("Connection Lost")
             self.positions_book['ltp'] = ltp
             #Calculate change in price by LTP - average price

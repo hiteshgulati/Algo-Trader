@@ -28,15 +28,16 @@ def execute_algo (**kwargs):
     with open (file_path, "r") as openfile:
         broker_secret = json.load(openfile)
 
-    if not kwargs['is_kite_access_token_available']:
-        broker_secret['kite_access_token'] = \
-            generate_access_token(broker_secret,kwargs['kite_request_token'])
+    if kwargs['broker_for_data'] == 'zerodha' or kwargs['broker_for_trade'] == 'zerodha':
+        if not kwargs['is_kite_access_token_available']:
+            broker_secret['kite_access_token'] = \
+                generate_access_token(broker_secret,kwargs['kite_request_token'])
 
         with open (file_path, "w") as outfile:
             json.dump(broker_secret,outfile)
 
-    # logs_folder_path = kwargs['log_folder_name']
-    logs_folder_path = os.path.join(parent,kwargs['log_folder_name'])
+    logs_folder_path = kwargs['log_folder_name']
+    # logs_folder_path = os.path.join(parent,kwargs['log_folder_name'])
 
     if kwargs['broker_for_data'].upper() == 'SIM':
         current_datetime = kwargs['day_start_datetime']
@@ -123,16 +124,16 @@ def execute_algo (**kwargs):
 if __name__ == '__main__':
     
     #For Live Trading
-    day_start_datetime = None
-    trading_start_time = datetime(2020,1,1,9,58).time()
-    trading_close_time = datetime(2020,1,1,15,7).time()
-    switch_off_time = datetime(2020,1,1,15,10,0).time()
+    # day_start_datetime = None
+    # trading_start_time = datetime(2020,1,1,9,58).time()
+    # trading_close_time = datetime(2020,1,1,15,7).time()
+    # switch_off_time = datetime(2020,1,1,15,10,0).time()
 
     #For Simulation
-    # day_start_datetime = datetime(2021,5,17,9,15)
-    # trading_start_time = datetime(2021,5,17,9,20).time()
-    # trading_close_time = datetime(2021,5,17,9,25).time()
-    # switch_off_time =    datetime(2021,5,17,9,25).time()
+    day_start_datetime = datetime(2021,5,17,9,15)
+    trading_start_time = datetime(2021,5,17,9,20).time()
+    trading_close_time = datetime(2021,5,17,13,30).time()
+    switch_off_time =    datetime(2021,5,17,13,37).time()
 
     # For Live Paper trade
     # day_start_datetime = None
@@ -144,7 +145,7 @@ if __name__ == '__main__':
     non_expiry_day_no_candle_time = datetime(2020, 1, 1, 14, 30).time()
     expiry_day_no_candle_time = datetime(2020, 1, 1, 13, 0).time()
 
-    is_kite_access_token_available = True
+    is_kite_access_token_available = False
     kite_request_token='9ssq7Xyih3uC16rtS23BdiO6wZr5cj5c'
 
     broker_secret_file_name = 'broker_secret.json'
@@ -156,20 +157,25 @@ if __name__ == '__main__':
     lots_traded = 1
     underlying_name = 'NIFTY'
 
-    broker_for_trade = 'zerodha'
-    broker_for_data = 'zerodha'
+    broker_for_trade = 'paper'
+    broker_for_data = 'sim'
 
     pause_between_iterations = .7 
 
-    # broker_connection_loss = [{'start_datetime':datetime(2021,5,17,9,16),
-    #                             'end_datetime':datetime(2021,5,17,9,18)},
-    #                         {'start_datetime':datetime(2021,5,17,9,22),
-    #                         'end_datetime':datetime(2021,5,17,9,23)},
-    #                         {'start_datetime':datetime(2021,5,17,10,22),
-    #                         'end_datetime':datetime(2021,5,17,10,23)}]
-
     broker_connection_loss = None
     exchange_connection_loss = None
+
+
+    broker_connection_loss = [{'start_datetime':datetime(2021,5,17,9,16),
+                                'end_datetime':datetime(2021,5,17,9,18)},
+                            {'start_datetime':datetime(2021,5,17,9,21),
+                            'end_datetime':datetime(2021,5,17,9,32)},
+                            {'start_datetime':datetime(2021,5,17,10,22),
+                            'end_datetime':datetime(2021,5,17,10,23)},
+                            {'start_datetime':datetime(2021,5,17,11,32),
+                            'end_datetime':datetime(2021,5,17,12,50)}]
+
+    
 
     historical_data_folder_name = 'historical data'
     fno_folder_name = 'FNO'
