@@ -371,7 +371,8 @@ class Data_guy:
             'candle_t_1_end':self.candle_t_1['end_datetime'],\
             'candle_t_1_open':self.candle_t_1['open'],
             'candle_t_1_close':self.candle_t_1['close'],
-            'is_broker_working':self.is_broker_working}, \
+            'is_broker_working':self.is_broker_working,
+            'trailing_loss_trigger':self.events_and_actions.trailing_loss_trigger}, \
             ignore_index=True)
         #save data_df
         self.data_df.to_csv(self.data_df_store_path, index=False)

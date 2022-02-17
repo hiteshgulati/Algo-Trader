@@ -909,22 +909,29 @@ class Broker:
             if len(p)==0:
                 pnl = 0
             else:
+                logger1.log(positions=p)
                 p['exchange:instrument_id'] = p['exchange'] \
                         + ":" + \
                         p['tradingsymbol']
-                p['last_price'] = pd.DataFrame.from_dict(\
+                kite_ltp = pd.DataFrame.from_dict(\
                     self.kite.ltp(list(p['exchange:instrument_id'])),\
-                        orient='index').reset_index()['last_price']
+                        orient='index')
+                logger1.log(kite_ltp=kite_ltp)
+                p = pd.merge(p,kite_ltp[['index','last_price']],
+                    how='left',left_on='exchange:instrument_id',
+                    right_on='index',suffixes=("","_fetched"))
+
                 p['qty_in_hand'] = p['buy_quantity'] - \
                         p ['sell_quantity']
                 p['cash_flow_realized'] = \
                     (p['sell_quantity']*p['sell_price']) - \
                         (p['buy_quantity'] * p['buy_price'])
                 p['cash_flow_unrealized'] = \
-                    p['qty_in_hand'] * p['last_price']
+                    p['qty_in_hand'] * p['last_price_fetched']
+                logger1.log(modified_positions = p)
                 pnl = p['cash_flow_realized'].sum() + \
                     p['cash_flow_unrealized'].sum()
-            return pnl
+            return round(pnl,2)
 
         elif self.broker_for_trade == 'KOTAK':
             
